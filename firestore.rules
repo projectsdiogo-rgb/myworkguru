@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/config/admin)
+        && get(/databases/$(database)/documents/config/admin).data.uid == request.auth.uid;
+    }
+    function myRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+    function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function canRead()  { return isAdmin() || (hasProfile() && myRole() in ['viewer', 'editor', 'admin']); }
+    function canWrite() { return isAdmin() || (hasProfile() && myRole() in ['editor', 'admin']); }
+
+    // Quem é o administrador: só pode ser criado uma vez (a primeira conta) e nunca alterado pela app.
+    match /config/admin {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Perfis: cada pessoa cria o seu como "pending"; só o administrador aprova, muda papéis ou remove.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'pending';
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // Dados da app: leitores veem, editores e administrador alteram.
+    match /{coll}/{id} {
+      allow read: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers'] && canRead();
+      allow write: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers'] && canWrite();
+    }
+  }
+}
