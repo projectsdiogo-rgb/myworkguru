@@ -818,6 +818,8 @@ function showTransfer(id){
 
 /* ================= Login, registo e aprovação ================= */
 var LOGO='<div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>';
+var EYE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.4 3.3M6.6 6.6C3.8 8.3 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.5 4.9-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
 var ROLE_L={pending:"A aguardar",viewer:"Só leitura",editor:"Editor",admin:"Administrador"};
 var meUnsub=null,pendUnsub=null,pendingCount=0,authUser=null,entered=false,regName="";
 function authShell(inner){root.innerHTML='<div class="auth"><div class="auth-card"><div class="brand auth-brand">'+LOGO+'MyWorkGuru</div>'+inner+'</div></div><div class="toast" id="toast"></div>'}
@@ -836,11 +838,12 @@ function viewAuth(mode){
     '<form id="a-form" novalidate>'+
     (reg?'<div class="field"><label class="lbl" for="a-name">Nome</label><input id="a-name" autocomplete="name" maxlength="40" required></div>':'')+
     '<div class="field"><label class="lbl" for="a-email">Email</label><input id="a-email" type="email" autocomplete="email" inputmode="email" required></div>'+
-    (reset?'':'<div class="field"><label class="lbl" for="a-pass">Palavra-passe</label><input id="a-pass" type="password" autocomplete="'+(reg?'new-password':'current-password')+'" minlength="6" required></div>')+
+    (reset?'':'<div class="field"><label class="lbl" for="a-pass">Palavra-passe'+(reg?' <span class="lbl-note">(mínimo 6 caracteres)</span>':'')+'</label><div class="pwwrap"><input id="a-pass" type="password" autocomplete="'+(reg?'new-password':'current-password')+'" minlength="6" required><button type="button" class="pweye" id="a-eye" aria-label="Mostrar palavra-passe" title="Mostrar palavra-passe">'+EYE+'</button></div></div>')+
     '<p class="auth-err" id="a-err"></p>'+
     '<button class="btn wide" id="a-go" type="submit">'+(reg?'Criar conta':reset?'Enviar email':'Entrar')+'</button></form>'+
     '<div class="auth-links">'+(mode!=="login"?'<button class="linkbtn" data-m="login">Já tenho conta — entrar</button>':'<button class="linkbtn" data-m="register">Criar conta nova</button><button class="linkbtn" data-m="reset">Esqueci-me da palavra-passe</button>')+'</div>');
   document.querySelectorAll("[data-m]").forEach(function(b){b.onclick=function(){viewAuth(b.dataset.m)}});
+  var eye=$("a-eye");if(eye)eye.onclick=function(){var i=$("a-pass"),show=i.type==="password";i.type=show?"text":"password";eye.innerHTML=show?EYE_OFF:EYE;eye.setAttribute("aria-label",show?"Esconder palavra-passe":"Mostrar palavra-passe");eye.title=eye.getAttribute("aria-label");eye.classList.toggle("on",show);i.focus()};
   $("a-form").onsubmit=function(e){
     e.preventDefault();var err=$("a-err"),go=$("a-go"),email=$("a-email").value.trim();err.textContent="";
     if(reg&&!$("a-name").value.trim()){err.textContent="Escreva o seu nome.";return}

@@ -371,6 +371,10 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
   .section-title.big{font-size:18px}
 }
 /* ---- v12: login, equipa, só leitura ---- */
+.pwwrap{position:relative}.pwwrap input{padding-right:48px}
+.pweye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:38px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;border-radius:8px}
+.pweye:hover,.pweye.on{color:var(--accent)}
+.lbl-note{text-transform:none;letter-spacing:0;font-weight:500}
 .auth{min-height:100vh;display:grid;place-items:center;padding:24px 16px calc(24px + var(--safe-b))}
 .auth-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:26px 22px;box-shadow:var(--shadow)}
 .auth-brand{font-size:22px;margin-bottom:18px}.auth-brand .logo{width:36px;height:36px}
