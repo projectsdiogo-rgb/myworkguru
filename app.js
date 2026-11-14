@@ -977,24 +977,34 @@ function ensureProfile(user,name){
   var ref=FB.doc(FB.db,"users/"+user.uid);
   return FB.getDoc(ref).then(function(s){if(s.exists())return s.data();var d={name:name||regName||user.displayName||(user.email||"").split("@")[0],email:user.email||"",role:"pending",createdAt:Date.now()};return FB.setDoc(ref,d).then(function(){return d})});
 }
+var ME_KEY="mwg_me_";
+function enterApp(){
+  readOnly=me.role==="viewer";document.body.classList.toggle("ro",readOnly);
+  if(!entered){entered=true;if(!$("view"))authShell('<p class="auth-p">A carregar dados…</p>');startData();if(isAdminUser&&!pendUnsub)watchPending()}
+  else if($("view")){render()}
+}
 function onAuth(user){
   authUser=user;if(meUnsub){meUnsub();meUnsub=null}if(pendUnsub){pendUnsub();pendUnsub=null}
   if(!user){me=null;isAdminUser=false;entered=false;stopData();document.body.classList.remove("ro");viewAuth("login");return}
-  authShell('<p class="auth-p">A entrar…</p>');
-  ensureProfile(user).then(function(){
-    return FB.getDoc(FB.doc(FB.db,"config/admin"));
-  }).then(function(a){
-    if(!a.exists()){viewClaim();return}
+  // Arranque rápido: se este telemóvel já conhece o acesso desta conta, mostra logo os dados guardados
+  // e confirma as permissões em segundo plano (quem manda continua a ser o Firebase).
+  var cached=lsGet(ME_KEY+user.uid);
+  if(cached&&cached.role&&cached.role!=="pending"){me=cached;isAdminUser=!!cached.admin;enterApp()}
+  else authShell('<p class="auth-p">A entrar…</p>');
+  Promise.all([ensureProfile(user),FB.getDoc(FB.doc(FB.db,"config/admin"))]).then(function(r){
+    var a=r[1];
+    if(!a.exists()){entered=false;stopData();lsSet(ME_KEY+user.uid,null);viewClaim();return}
     isAdminUser=a.data().uid===user.uid;
     meUnsub=FB.onSnapshot(FB.doc(FB.db,"users/"+user.uid),function(s){
-      if(!s.exists()){entered=false;stopData();showAuthMsg("O seu pedido de acesso foi recusado ou o acesso foi removido.");return}
-      var d=s.data();me={uid:user.uid,name:d.name||user.displayName||"",email:d.email,role:isAdminUser?"admin":d.role};
+      if(!s.exists()){entered=false;stopData();lsSet(ME_KEY+user.uid,null);showAuthMsg("O seu pedido de acesso foi recusado ou o acesso foi removido.");return}
+      var d=s.data(),prevRole=me&&me.role;
+      me={uid:user.uid,name:d.name||user.displayName||"",email:d.email,role:isAdminUser?"admin":d.role,admin:isAdminUser};
+      lsSet(ME_KEY+user.uid,me);
       if(me.role==="pending"){entered=false;stopData();viewWaiting();return}
-      readOnly=me.role==="viewer";document.body.classList.toggle("ro",readOnly);
-      if(!entered){entered=true;authShell('<p class="auth-p">A carregar dados…</p>');startData();if(isAdminUser)watchPending()}
-      else if($("view")){render()}
-    },function(e){showAuthMsg("Erro ao ler o seu perfil: "+(e&&e.code||e))});
-  }).catch(function(e){showAuthMsg("Erro ao entrar: "+(e&&e.code||e))});
+      if(entered&&prevRole===me.role){if(isAdminUser&&!pendUnsub)watchPending();var ub=document.querySelector("#userBtn .unm");if(ub)ub.textContent=me.name+(readOnly?" · só leitura":"");return}
+      enterApp();
+    },function(e){if(!entered)showAuthMsg("Erro ao ler o seu perfil: "+(e&&e.code||e))});
+  }).catch(function(e){if(!entered)showAuthMsg("Erro ao entrar: "+(e&&e.code||e))});
 }
 function viewWaiting(){
   authShell('<h1 class="auth-h">A aguardar aprovação</h1><p class="auth-p">Olá <b>'+esc(me.name)+'</b>. O seu pedido foi enviado ao administrador. Assim que for aprovado, a app abre automaticamente aqui.</p><p class="auth-p small">'+esc(me.email||"")+'</p><button class="btn ghost wide" id="a-out">Terminar sessão</button>');
@@ -1007,7 +1017,7 @@ function viewClaim(){
     FB.setDoc(FB.doc(FB.db,"config/admin"),{uid:authUser.uid,at:Date.now()}).then(function(){return FB.updateDoc(FB.doc(FB.db,"users/"+authUser.uid),{role:"admin"})}).then(function(){onAuth(authUser)})
     .catch(function(e){b.disabled=false;$("a-err").textContent="Não foi possível: "+(e&&e.code||e)+(e&&e.code==="permission-denied"?" — já existe administrador ou as regras de segurança ainda não foram publicadas.":"")})};
 }
-function doSignOut(){if(dirty)saveDraft(true);if(syncTimer){clearTimeout(syncTimer);syncNow()}FB.signOut(FB.auth)}
+function doSignOut(){if(dirty)saveDraft(true);if(authUser)lsSet(ME_KEY+authUser.uid,null);if(syncTimer){clearTimeout(syncTimer);syncNow()}FB.signOut(FB.auth)}
 function watchPending(){
   pendUnsub=FB.onSnapshot(FB.query(FB.collection(FB.db,"users"),FB.where("role","==","pending")),function(s){pendingCount=s.size;updateTeamBadge();var t=$("teamlist");if(t)renderTeam()},function(){});
 }
