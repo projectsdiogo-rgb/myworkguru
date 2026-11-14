@@ -54,7 +54,9 @@ function saveUI(){lsSet(UI_KEY,ui)}
 function blank(){return{status:"ok",species:"",content:"",notes:"",updatedAt:0,log:[]}}
 function tankData(id){if(!state.tanks[id])state.tanks[id]=blank();return state.tanks[id]}
 function peek(id){return state.tanks[id]||blank()}
-function logTo(td,text){td.log=td.log||[];var e={t:Date.now(),text:text};if(me&&me.name)e.by=me.name;td.log.push(e);if(td.log.length>300)td.log=td.log.slice(-300)}
+function logTo(td,text){td.log=td.log||[];var e={t:Date.now(),text:text};if(me&&me.name)e.by=me.name;td.log.push(e);if(td.log.length>LIM.log)td.log=td.log.slice(-LIM.log)}
+/* Limites na app (o arquivo completo fica na folha Google). */
+var LIM={log:150,cleans:30,treatments:60,transfers:400,moves:400};
 function newId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 
 var me=null,isAdminUser=false,readOnly=false,saveEl=null,syncTimer=null,synced={},dataReady=false,online=navigator.onLine!==false,pendingWrites=0;
@@ -90,7 +92,9 @@ function syncNow(){
   if(!ops.length){idleSave();return}
   for(var i=0;i<ops.length;i+=400){
     var batch=FB.writeBatch(FB.db);
-    ops.slice(i,i+400).forEach(function(o){var r=FB.doc(FB.db,o[0]);if(o[1])batch.set(r,o[1]);else batch.delete(r)});
+    var now=Date.now();
+    ops.slice(i,i+400).forEach(function(o){var r=FB.doc(FB.db,o[0]);if(o[1]){o[1]._mod=now;batch.set(r,o[1])}else batch.delete(r)});
+    batch.set(FB.doc(FB.db,"meta/sync"),{t:now,by:me?me.name:""});
     pendingWrites++;idleSave();
     batch.commit().then(function(){pendingWrites--;idleSave()}).catch(function(err){pendingWrites--;setSave("err","Erro ao guardar");toast("Não foi possível guardar ("+(err&&err.code||err)+")");});
   }
@@ -131,6 +135,7 @@ function startData(){
       var changed=false;
       snap.docChanges().forEach(function(ch){
         var k=c+"/"+ch.doc.id;
+        if(k==="meta/sync")return;
         if(ch.type==="removed"){if(k in synced){delete synced[k];applyTo(state,k,null);changed=true}}
         else{var d=ch.doc.data(),s=stable(d);if(synced[k]!==s){synced[k]=s;applyTo(state,k,JSON.parse(s));changed=true}}
       });
@@ -176,7 +181,7 @@ function setCleaned(id,on,silent){
   var td=tankData(id),ws=weekStart(Date.now());td.cleans=td.cleans||[];
   if(on){td.cleans.push(Date.now());logTo(td,"Limpeza registada")}
   else{td.cleans=td.cleans.filter(function(c){return c<ws});logTo(td,"Limpeza desta semana anulada")}
-  if(td.cleans.length>60)td.cleans=td.cleans.slice(-60);
+  if(td.cleans.length>LIM.cleans)td.cleans=td.cleans.slice(-LIM.cleans);
   td.updatedAt=Date.now();
   if(!silent)persist(BYID[id].label+(on?" limpo ✓":" — limpeza anulada"),{label:"Anular",fn:function(){setCleaned(id,!on,true);persist(null);if(ui.tab==="lt")viewClean();else{refreshTank(id);if(selected===id)renderPanel()}}});
 }
@@ -200,7 +205,7 @@ function startTreatment(ids,f){
     var t={product:f.product,dose:(f.dose||"").trim(),notes:(f.notes||"").trim(),start:now,waterMin:mins,waterUntil:mins?now+mins*60000:0,waterOnAt:0,endedAt:0};
     if(mins){td.treat=t;logTo(td,"Tratamento iniciado: "+t.product+(t.dose?" ("+t.dose+")":"")+" · água desligada "+mins+" min")}
     else{t.endedAt=now;td.treatments.push(t);logTo(td,"Tratamento registado: "+t.product+(t.dose?" ("+t.dose+")":""))}
-    if(td.treatments.length>150)td.treatments=td.treatments.slice(-150);
+    if(td.treatments.length>LIM.treatments)td.treatments=td.treatments.slice(-LIM.treatments);
     td.updatedAt=now;
   });
   if(f.other&&f.product&&!products().some(function(p){return p.name.toLowerCase()===f.product.toLowerCase()}))products().push({name:f.product,water:mins});
@@ -620,7 +625,7 @@ function lowCount(){return feeds().filter(isLow).length}
 function updateFeedBadge(){var n=lowCount();document.querySelectorAll(".nbadge[data-nf]").forEach(function(b){b.textContent=n;b.style.display=n?"":"none"})}
 function addMove(f,delta,bags,dest,note){
   var mv={t:Date.now(),feedId:f.id,name:f.name,kg:Math.round(delta*10)/10,bags:bags||0,dest:(dest||"").trim(),note:(note||"").trim(),after:Math.round(f.stockKg*10)/10,id:newId("m"),by:me?me.name:""};
-  feedMoves().push(mv);if(feedMoves().length>800)state.feedMoves=feedMoves().slice(-800);return mv;
+  feedMoves().push(mv);if(feedMoves().length>LIM.moves)state.feedMoves=feedMoves().slice(-LIM.moves);return mv;
 }
 function viewFeed(){
   var v=$("view"),F=feeds(),total=F.reduce(function(a,f){return a+(+f.stockKg||0)},0),low=F.filter(isLow);
@@ -772,7 +777,7 @@ function renderTransferSheet(){
 function saveTransfer(f){
   var isOut=f.to.indexOf("out:")===0,rec={id:"x"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),t:f.t,from:f.from,to:isOut?"":f.to,out:isOut?f.to.slice(4):"",outDetail:isOut?(f.outDetail||"").trim():"",
     species:f.species,qty:Math.max(0,parseInt(f.qty,10)||0),kg:Math.max(0,Math.round((parseFloat(String(f.kg).replace(",","."))||0)*10)/10),notes:(f.notes||"").trim(),createdAt:Date.now(),by:me?me.name:""};
-  transfers().push(rec);if(transfers().length>2000)state.transfers=transfers().slice(-2000);
+  transfers().push(rec);if(transfers().length>LIM.transfers)state.transfers=transfers().slice(-LIM.transfers);
   var desc=trDesc(rec),when=rec.t<Date.now()-5*60000?" (em "+fmt(rec.t)+")":"";
   if(BYID[rec.from]){var a=tankData(rec.from);logTo(a,"Transferência → "+trToLabel(rec)+(desc?" · "+desc:"")+when);a.updatedAt=Date.now();
     if(f.srcEmpty&&a.status!=="empty"){logTo(a,"Estado: "+STL[a.status]+" → Vazio");a.status="empty";a.species=""}}

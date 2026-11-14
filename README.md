@@ -23,8 +23,13 @@ As alterações enviadas para o ramo `main` ficam online no GitHub Pages em 1–
 
 ## Folha Google (dados sempre atualizados)
 
-A pasta `planilha/` tem o script que copia os dados da app para uma Google Sheets a cada 5 minutos
-(separadores: Resumo, Tanques, Limpezas, Tratamentos, Transferências, Rações, Movimentos rações, Fichas, Pesagens, Histórico).
+A pasta `planilha/` tem o script que copia os dados da app para uma Google Sheets a cada 5 minutos.
+
+- **Estado atual** (reescrito): Resumo, Tanques, Rações, Fichas.
+- **Arquivo permanente** (acumula desde o primeiro dia, nunca apaga): Limpezas, Tratamentos, Transferências, Movimentos rações, Pesagens, Histórico.
+
+A app guarda só os registos recentes para se manter leve; o histórico completo fica na folha.
+A folha só lê o Firebase quando a app gravou algo novo (documento `meta/sync`), para poupar a quota gratuita.
 
 1. Criar uma folha no Google Drive (mesma conta Google do Firebase) → Extensões → Apps Script.
 2. Definições do projeto → ativar "Mostrar o ficheiro de manifesto appsscript.json".
