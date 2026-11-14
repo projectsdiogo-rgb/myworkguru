@@ -1,6 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
+var APP_VERSION="20261114232704";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1062,6 +1063,25 @@ function bindSeed(){var b=$("seed-go");if(!b)return;b.onclick=function(){
   var d=seedData;state.tanks=d.tanks||{};state.products=d.products||null;state.feeds=d.feeds||[];state.feedMoves=(d.feedMoves||[]).map(function(m){m.id=m.id||newId("m");return m});state.transfers=d.transfers||[];
   seedData=null;persist("Dados importados");renderView();
 }}
+
+/* ================= Aviso de nova versão (verifica no GitHub, não gasta leituras do Firebase) ================= */
+var lastVerCheck=0,newVer=null;
+function checkVersion(){
+  if(APP_VERSION==="dev"||newVer||Date.now()-lastVerCheck<60000)return;lastVerCheck=Date.now();
+  fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(j&&j.version&&j.version!==APP_VERSION){newVer=j.version;showUpdateBar()}
+  }).catch(function(){});
+}
+function showUpdateBar(){
+  if($("updbar"))return;var b=document.createElement("button");b.id="updbar";b.className="updbar";
+  b.innerHTML='<b>Nova versão disponível</b><span>Tocar para atualizar</span>';
+  b.onclick=function(){b.disabled=true;b.querySelector("span").textContent="A atualizar…";
+    if(dirty)saveDraft(true);if(syncTimer){clearTimeout(syncTimer);syncNow()}
+    setTimeout(function(){location.replace(location.pathname+"?v="+newVer+location.hash)},pendingWrites>0?1200:150)};
+  document.body.appendChild(b);
+}
+setTimeout(checkVersion,8000);setInterval(checkVersion,10*60000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)checkVersion()});
 
 /* ================= Arranque ================= */
 applyTheme();

@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js">
+<link rel="modulepreload" href="app.js?v=20261114232704">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
@@ -380,6 +380,9 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 }
 .auth-logo{text-align:center;margin:-4px 0 16px}.auth-logo img{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(10,70,86,.3)}
 .brand .logo-mark{width:34px;height:34px;border-radius:9px;display:block;flex:none;box-shadow:0 2px 6px rgba(8,63,77,.25)}
+.updbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + var(--safe-t));z-index:300;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);padding:10px 16px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:0 10px 28px rgba(0,0,0,.28);font:inherit;cursor:pointer;animation:updin .35s ease-out}
+.updbar{white-space:nowrap;min-width:240px}.updbar b{font-size:14.5px}.updbar span{font-size:12.5px;opacity:.9}
+@keyframes updin{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 /* ---- v13: fichas ---- */
 .figrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .ficard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
@@ -462,6 +465,6 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=20261114232704"></script>
 </body>
 </html>

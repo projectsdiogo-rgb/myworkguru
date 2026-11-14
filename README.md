@@ -35,3 +35,8 @@ A folha só lê o Firebase quando a app gravou algo novo (documento `meta/sync`)
 2. Definições do projeto → ativar "Mostrar o ficheiro de manifesto appsscript.json".
 3. Colar `planilha/appsscript.json` e `planilha/Code.gs`, guardar.
 4. Escolher a função `instalar` → Executar → autorizar.
+
+## Publicar uma versão nova
+
+Antes de cada `git push`, correr `python3 tools/bump.py`: atualiza `version.json`, `APP_VERSION` em `app.js` e o `?v=` em `index.html`.
+Os telemóveis com a app aberta mostram então o aviso **"Nova versão disponível — tocar para atualizar"** (verificação ao GitHub, sem gastar leituras do Firebase).
