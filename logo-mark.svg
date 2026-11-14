@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#11929c"/><stop offset="1" stop-color="#083f4d"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#g)"/><g transform="translate(14,4) scale(0.95)">
+<g fill="#fff">
+  <!-- spiny dorsal fin -->
+  <path d="M340 104 L326 68 L310 100 L294 66 L282 100 L262 72 L258 106 L234 84 L234 116 L208 102 L214 128 L186 124 L198 146 L172 148 C200 120 260 104 340 104 Z"/>
+  <!-- soft dorsal fin -->
+  <path d="M146 246 C122 248 106 262 98 284 C116 282 132 288 142 300 Z"/>
+  <!-- body -->
+  <path d="M450 140
+           C434 110 402 98 362 98
+           C312 98 262 108 224 130
+           C180 156 152 200 144 250
+           C136 302 150 352 182 392
+           L202 412 L242 406
+           C228 366 228 324 246 296
+           C268 264 308 254 354 250
+           C394 246 432 232 460 214
+           L470 202
+           C448 198 426 190 406 176
+           L442 152 Z"/>
+  <!-- tail -->
+  <path d="M202 406 L242 402 C254 428 272 450 298 468 C268 472 240 462 224 446 C212 464 188 478 158 482 C178 458 192 432 202 406 Z"/>
+  <!-- pectoral fin -->
+  <path d="M336 254 C314 270 292 292 262 310 C282 308 302 300 318 290 C330 282 336 270 340 260 Z"/>
+  <!-- anal fin -->
+  <path d="M234 322 C252 324 270 334 282 352 C264 354 248 350 238 340 Z"/>
+</g>
+<!-- darker back like the reference -->
+<path d="M362 106 C300 106 242 122 202 158 C168 190 154 236 154 286 C160 240 180 206 214 182 C252 156 304 144 358 144 C366 132 368 118 362 106 Z" fill="#0b5f6b" opacity=".38"/>
+<g fill="none" stroke="#0b5f6b" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="400" cy="136" r="12" fill="#0b5f6b" stroke="none"/>
+  <circle cx="403" cy="132" r="4" fill="#fff" stroke="none"/>
+  <!-- lips / open mouth -->
+  <path d="M442 152 L406 176 L470 202" stroke-width="6"/>
+  <path d="M412 180 C426 194 444 204 462 210" stroke-width="3"/>
+  <path d="M450 140 C446 146 444 150 442 152" stroke-width="4"/>
+  <!-- gill cover -->
+  <path d="M366 106 C346 140 344 196 366 244" stroke-width="8"/>
+  <path d="M384 200 C374 214 374 230 380 242" stroke-width="4"/>
+  <!-- lateral line -->
+  <path d="M352 176 C296 168 240 184 208 222 C182 254 178 308 198 368" stroke-width="4" opacity=".8"/>
+</g>
+</g></svg>

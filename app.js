@@ -287,7 +287,7 @@ function badgeHTML(id){var t=activeTreat(id);if(!t)return"";var late=isLate(t);r
 var root=$("root");
 function render(){
   root.innerHTML='<div class="app">'+
-   '<header class="top"><div class="brand"><div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>MyWorkGuru</div>'+
+   '<header class="top"><div class="brand"><img class="logo-mark" src="logo-mark.svg" alt="" width="34" height="34">MyWorkGuru</div>'+
     '<nav class="sections">'+TABS.map(function(t){return '<button data-tab="'+t.k+'">'+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
     '<div class="spacer"></div><div class="savestate" id="save"><i></i><span>A ligar…</span></div>'+
     '<button class="userbtn" id="userBtn" title="Conta"><span class="uav">'+esc(((me&&me.name)||"?").trim().charAt(0).toUpperCase())+'</span><span class="unm">'+esc((me&&me.name)||"")+(readOnly?' · só leitura':'')+'</span><span class="nbadge low" data-nt style="display:none"></span></button>'+
