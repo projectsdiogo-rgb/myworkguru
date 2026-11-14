@@ -1,1 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0e7c86"/><g fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"><rect x="13" y="13" width="15" height="15" rx="3"/><rect x="36" y="13" width="15" height="15" rx="3"/><rect x="13" y="36" width="15" height="15" rx="3"/><rect x="36" y="36" width="15" height="15" rx="3"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 60 440 440">
+<rect width="512" height="512" rx="112" fill="#0e7c86"/>
+<g id="fish" fill="#fff">
+  <!-- dorsal spiky fin -->
+  <path d="M168 196 C176 168 190 146 206 128 L212 150 L224 120 L232 146 L248 112 L254 140 L272 108 L274 136 L294 108 L292 132 L312 116 C300 132 284 142 262 150 C228 160 196 176 168 196 Z"/>
+  <!-- body (arched), head upper right -->
+  <path d="M150 300
+           C140 238 176 182 238 154
+           C290 130 352 124 398 140
+           C420 147 438 156 452 160
+           L440 176 L458 186
+           C446 206 428 222 404 230
+           C366 244 324 236 290 248
+           C252 262 228 290 220 330
+           C216 352 218 368 224 380
+           L186 380
+           C166 356 154 330 150 300 Z"/>
+  <!-- tail -->
+  <path d="M186 374 L224 374 C232 394 250 414 272 426 C248 432 222 428 206 414 C196 432 178 444 152 448 C166 426 176 400 186 374 Z"/>
+  <!-- pectoral fin -->
+  <path d="M300 250 C286 272 266 290 238 300 C254 280 264 262 268 246 Z"/>
+</g>
+<g fill="none" stroke="#0e7c86" stroke-linecap="round">
+  <circle cx="400" cy="168" r="9" fill="#0e7c86" stroke="none"/>
+  <circle cx="403" cy="165" r="3" fill="#fff" stroke="none"/>
+  <path d="M362 150 C350 176 352 204 368 228" stroke-width="7"/>
+  <path d="M436 172 L458 186" stroke-width="5"/>
+  <path d="M250 196 C292 182 336 182 372 196" stroke-width="4" opacity=".6"/>
+</g>
+</svg>

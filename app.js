@@ -940,7 +940,7 @@ var EYE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="cur
 var EYE_OFF='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.4 3.3M6.6 6.6C3.8 8.3 2 12 2 12s3.5 7 10 7c1.9 0 3.5-.5 4.9-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
 var ROLE_L={pending:"A aguardar",viewer:"Só leitura",editor:"Editor",admin:"Administrador"};
 var meUnsub=null,pendUnsub=null,pendingCount=0,authUser=null,entered=false,regName="";
-function authShell(inner){root.innerHTML='<div class="auth"><div class="auth-card"><div class="brand auth-brand">'+LOGO+'MyWorkGuru</div>'+inner+'</div></div><div class="toast" id="toast"></div>'}
+function authShell(inner){root.innerHTML='<div class="auth"><div class="auth-card"><div class="auth-logo"><img src="icon-192.png" alt="IPMA MyWorkGuru" width="96" height="96"></div>'+inner+'</div></div><div class="toast" id="toast"></div>'}
 function showAuthMsg(m){authShell('<p class="auth-p">'+esc(m)+'</p><button class="btn ghost wide" id="a-out">Terminar sessão</button>');$("a-out").onclick=doSignOut}
 function authErr(e){var c=(e&&e.code)||"";return({
   "auth/invalid-credential":"Email ou palavra-passe errados.","auth/wrong-password":"Email ou palavra-passe errados.","auth/user-not-found":"Não existe conta com esse email.",
