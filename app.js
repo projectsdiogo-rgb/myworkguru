@@ -126,30 +126,47 @@ function scheduleRender(force){
   renderPending=false;renderView();updateNavBadge();updateFeedBadge();
 }
 setInterval(function(){if(renderPending)scheduleRender()},1500);
-var COLLS=["tanks","meta","feeds","feedMoves","transfers","fichas"],unsubs=[];
+var COLLS=["tanks","meta","feeds","fichas"],unsubs=[];
+/* Transferências e movimentos de rações: só são carregados quando se abre o separador,
+   e só os últimos JANELA_DIAS dias (o histórico completo fica na folha Google). */
+var JANELA_DIAS=60,LAZY={transfers:null,feedMoves:null};
+function lazyLoaded(c){return LAZY[c]==="ok"}
+function ensureColl(c){
+  if(LAZY[c]||!FB.db)return;LAZY[c]="loading";
+  var desde=Date.now()-JANELA_DIAS*864e5;
+  unsubs.push(FB.onSnapshot(FB.query(FB.collection(FB.db,c),FB.where("t",">=",desde)),function(snap){
+    var changed=handleSnap(c,snap),first=LAZY[c]!=="ok";LAZY[c]="ok";
+    if(first||changed){if(ui.tab===(c==="transfers"?"transf":"racoes"))scheduleRender(first);}
+  },snapErr));
+}
 function startData(){
   if(unsubs.length)return;
   var loaded={};
   COLLS.forEach(function(c){
     unsubs.push(FB.onSnapshot(FB.collection(FB.db,c),function(snap){
-      var changed=false;
-      snap.docChanges().forEach(function(ch){
-        var k=c+"/"+ch.doc.id;
-        if(k==="meta/sync")return;
-        if(ch.type==="removed"){if(k in synced){delete synced[k];applyTo(state,k,null);changed=true}}
-        else{var d=ch.doc.data(),s=stable(d);if(synced[k]!==s){synced[k]=s;applyTo(state,k,JSON.parse(s));changed=true}}
-      });
-      if(changed)sortArrays();
+      var changed=handleSnap(c,snap);
       loaded[c]=1;
       if(!dataReady&&COLLS.every(function(x){return loaded[x]})){dataReady=true;render();checkSeed()}
       else if(changed)scheduleRender();
-    },function(err){
-      if(err&&err.code==="permission-denied")showAuthMsg("Sem permissão para ver os dados. Peça ao administrador para aprovar o seu acesso.");
-      else toast("Erro de ligação: "+(err&&err.code||err));
-    }));
+    },snapErr));
   });
 }
-function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
+function handleSnap(c,snap){
+  var changed=false;
+  snap.docChanges().forEach(function(ch){
+    var k=c+"/"+ch.doc.id;
+    if(k==="meta/sync")return;
+    if(ch.type==="removed"){if(k in synced){delete synced[k];applyTo(state,k,null);changed=true}}
+    else{var d=ch.doc.data(),s=stable(d);if(synced[k]!==s){synced[k]=s;applyTo(state,k,JSON.parse(s));changed=true}}
+  });
+  if(changed)sortArrays();
+  return changed;
+}
+function snapErr(err){
+  if(err&&err.code==="permission-denied")showAuthMsg("Sem permissão para ver os dados. Peça ao administrador para aprovar o seu acesso.");
+  else toast("Erro de ligação: "+(err&&err.code||err));
+}
+function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];LAZY={transfers:null,feedMoves:null};synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
 
 /* ================= Utilitários ================= */
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -462,7 +479,7 @@ function renderPanel(){
    '<div class="pbody">'+
     '<span class="lbl">Estado</span><div class="statuses">'+STATUSES.map(function(s){return '<button class="sbtn st-'+s.k+(d.status===s.k?' on':'')+'" data-s="'+s.k+'"><i></i>'+s.label+'</button>'}).join("")+'</div>'+
     cleanBox+treatBox+
-    '<span class="lbl">Peixe</span><div style="margin-bottom:18px"><div class="row" style="flex-wrap:wrap"><button class="btn ghost" id="x-from-panel">⇄ Transferir peixe</button>'+(t.group==="R"?'<button class="btn ghost" id="fi-from-panel">Ficha do peixe</button>':'')+'</div>'+(function(){var L=transfers().filter(function(x){return x.from===id||x.to===id}).sort(function(a,b){return b.t-a.t})[0];return L?'<div class="meta" style="margin-top:6px">Última: '+esc(trFromLabel(L))+' → '+esc(trToLabel(L))+' · '+fmt(L.t)+'</div>':''})()+'</div>'+
+    '<span class="lbl">Peixe</span><div style="margin-bottom:18px"><div class="row" style="flex-wrap:wrap"><button class="btn ghost" id="x-from-panel">⇄ Transferir peixe</button>'+(t.group==="R"?'<button class="btn ghost" id="fi-from-panel">Ficha do peixe</button>':'')+'</div>'+(function(){var L=(d.log||[]).filter(function(l){return /^Transferência [→←]/.test(l.text)}).slice(-1)[0];return L?'<div class="meta" style="margin-top:6px">Última: '+esc(L.text.replace(/^Transferência /,""))+' · '+fmt(L.t)+'</div>':''})()+'</div>'+
     '<div class="field"><label class="lbl" for="fsp">Espécie</label><input id="fsp" maxlength="40" list="splist" placeholder="Ex.: Robalo, Dourada…" value="'+esc(d.species)+'"><datalist id="splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
     '<div class="field"><label class="lbl" for="fc">Lote / conteúdo</label><input id="fc" maxlength="80" placeholder="Ex.: lote 2311" value="'+esc(d.content)+'"></div>'+
     '<div class="field"><label class="lbl" for="fn">Notas</label><textarea id="fn" placeholder="Observações sobre este tanque">'+esc(d.notes)+'</textarea></div>'+
@@ -628,6 +645,7 @@ function addMove(f,delta,bags,dest,note){
   feedMoves().push(mv);if(feedMoves().length>LIM.moves)state.feedMoves=feedMoves().slice(-LIM.moves);return mv;
 }
 function viewFeed(){
+  ensureColl("feedMoves");
   var v=$("view"),F=feeds(),total=F.reduce(function(a,f){return a+(+f.stockKg||0)},0),low=F.filter(isLow);
   var html='<div class="pagehead"><div><h1>Stock de rações</h1><p>Retire sacos para abater ao stock; registe entradas quando chegar ração.</p></div><button class="btn" id="f-new">+ Nova ração</button></div>';
   if(!F.length){
@@ -644,7 +662,7 @@ function viewFeed(){
     }).join("")+'</div>';
     var M=feedMoves().slice().reverse(),names={};M.forEach(function(m){names[m.feedId]=m.name});
     var MF=M.filter(function(m){return !feedFilter||m.feedId===feedFilter});
-    html+='<div class="section-title big">Movimentos<span>'+M.length+'</span></div>';
+    html+='<div class="section-title big">Movimentos<span>'+(lazyLoaded("feedMoves")?M.length:'…')+'</span></div><p class="hint" style="margin-top:-6px">Últimos '+JANELA_DIAS+' dias. O histórico completo está na folha Google.</p>';
     if(M.length){
       html+='<div class="fchips"><button class="chip'+(feedFilter?'':' on')+'" data-ff="">Todas</button>'+Object.keys(names).map(function(id){var f=feedById(id);return '<button class="chip'+(feedFilter===id?' on':'')+'" data-ff="'+id+'">'+esc(f?f.name:names[id])+'</button>'}).join("")+'</div>'+
        '<table class="htable"><thead><tr><th>Data</th><th>Ração</th><th style="text-align:right">kg</th><th class="hide-m">Destino / nota</th></tr></thead><tbody>'+
@@ -794,11 +812,13 @@ function deleteTransfer(id){
 function dayLabel(t){var d=new Date(t);d.setHours(0,0,0,0);var today=new Date();today.setHours(0,0,0,0);var diff=Math.round((today-d)/864e5);
   if(diff===0)return"Hoje";if(diff===1)return"Ontem";return new Date(t).toLocaleDateString("pt-PT",{weekday:"long",day:"numeric",month:"long",year:d.getFullYear()!==today.getFullYear()?"numeric":undefined})}
 function viewTransfers(){
+  ensureColl("transfers");
+  if(!lazyLoaded("transfers")){$("view").innerHTML='<div class="pagehead"><div><h1>Transferências</h1><p>A carregar…</p></div></div>';return}
   var v=$("view"),T=transfers().slice().sort(function(a,b){return b.t-a.t});
   var F=T.filter(function(x){if(trFilterTank&&x.from!==trFilterTank&&x.to!==trFilterTank)return false;if(trFilterType==="tank"&&!x.to)return false;if(trFilterType==="out"&&x.to)return false;if(trFilterType==="in"&&x.from!=="fora")return false;return true});
   var ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);
   var month=T.filter(function(x){return x.t>=ms.getTime()}),mOut=month.filter(function(x){return !x.to}).reduce(function(a,x){return a+(x.qty||0)},0);
-  var html='<div class="pagehead"><div><h1>Transferências</h1><p>Registo de peixes que mudam de tanque ou saem do mapa.</p></div><button class="btn" id="x-new">+ Nova transferência</button></div>'+
+  var html='<div class="pagehead"><div><h1>Transferências</h1><p>Registo de peixes que mudam de tanque ou saem do mapa. Aqui: últimos '+JANELA_DIAS+' dias; o histórico completo está na folha Google.</p></div><button class="btn" id="x-new">+ Nova transferência</button></div>'+
    '<div class="fsum"><div><b>'+month.length+'</b> este mês</div><div>'+month.filter(function(x){return x.to}).length+' entre tanques</div><div>'+(function(){var no=month.filter(function(x){return !x.to}).length;return no+(no===1?' saída':' saídas')})()+(mOut?' ('+mOut+' peixes)':'')+'</div></div>'+
    '<div class="toolbar"><select id="x-ft" class="selectf"><option value="">Todos os tanques</option>'+tankOptions(trFilterTank)+'</select>'+
    '<div class="seg" id="x-ty">'+[["","Todas"],["tank","Entre tanques"],["out","Saídas"],["in","Entradas"]].map(function(o){return '<button data-ty="'+o[0]+'" class="'+(trFilterType===o[0]?'on':'')+'">'+o[1]+'</button>'}).join("")+'</div></div>';
