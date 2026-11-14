@@ -1,30 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 60 440 440">
-<rect width="512" height="512" rx="112" fill="#0e7c86"/>
-<g id="fish" fill="#fff">
-  <!-- dorsal spiky fin -->
-  <path d="M168 196 C176 168 190 146 206 128 L212 150 L224 120 L232 146 L248 112 L254 140 L272 108 L274 136 L294 108 L292 132 L312 116 C300 132 284 142 262 150 C228 160 196 176 168 196 Z"/>
-  <!-- body (arched), head upper right -->
-  <path d="M150 300
-           C140 238 176 182 238 154
-           C290 130 352 124 398 140
-           C420 147 438 156 452 160
-           L440 176 L458 186
-           C446 206 428 222 404 230
-           C366 244 324 236 290 248
-           C252 262 228 290 220 330
-           C216 352 218 368 224 380
-           L186 380
-           C166 356 154 330 150 300 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0e7c86"/><g transform="translate(36,20) scale(0.88)">
+<g fill="#fff">
+  <!-- spiny dorsal fin -->
+  <path d="M340 104 L326 68 L310 100 L294 66 L282 100 L262 72 L258 106 L234 84 L234 116 L208 102 L214 128 L186 124 L198 146 L172 148 C200 120 260 104 340 104 Z"/>
+  <!-- soft dorsal fin -->
+  <path d="M146 246 C122 248 106 262 98 284 C116 282 132 288 142 300 Z"/>
+  <!-- body -->
+  <path d="M450 140
+           C434 110 402 98 362 98
+           C312 98 262 108 224 130
+           C180 156 152 200 144 250
+           C136 302 150 352 182 392
+           L202 412 L242 406
+           C228 366 228 324 246 296
+           C268 264 308 254 354 250
+           C394 246 432 232 460 214
+           L470 202
+           C448 198 426 190 406 176
+           L442 152 Z"/>
   <!-- tail -->
-  <path d="M186 374 L224 374 C232 394 250 414 272 426 C248 432 222 428 206 414 C196 432 178 444 152 448 C166 426 176 400 186 374 Z"/>
+  <path d="M202 406 L242 402 C254 428 272 450 298 468 C268 472 240 462 224 446 C212 464 188 478 158 482 C178 458 192 432 202 406 Z"/>
   <!-- pectoral fin -->
-  <path d="M300 250 C286 272 266 290 238 300 C254 280 264 262 268 246 Z"/>
+  <path d="M336 254 C314 270 292 292 262 310 C282 308 302 300 318 290 C330 282 336 270 340 260 Z"/>
+  <!-- anal fin -->
+  <path d="M234 322 C252 324 270 334 282 352 C264 354 248 350 238 340 Z"/>
 </g>
-<g fill="none" stroke="#0e7c86" stroke-linecap="round">
-  <circle cx="400" cy="168" r="9" fill="#0e7c86" stroke="none"/>
-  <circle cx="403" cy="165" r="3" fill="#fff" stroke="none"/>
-  <path d="M362 150 C350 176 352 204 368 228" stroke-width="7"/>
-  <path d="M436 172 L458 186" stroke-width="5"/>
-  <path d="M250 196 C292 182 336 182 372 196" stroke-width="4" opacity=".6"/>
+<!-- darker back like the reference -->
+<path d="M362 106 C300 106 242 122 202 158 C168 190 154 236 154 286 C160 240 180 206 214 182 C252 156 304 144 358 144 C366 132 368 118 362 106 Z" fill="#0e7c86" opacity=".38"/>
+<g fill="none" stroke="#0e7c86" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="400" cy="136" r="12" fill="#0e7c86" stroke="none"/>
+  <circle cx="403" cy="132" r="4" fill="#fff" stroke="none"/>
+  <!-- lips / open mouth -->
+  <path d="M442 152 L406 176 L470 202" stroke-width="6"/>
+  <path d="M412 180 C426 194 444 204 462 210" stroke-width="3"/>
+  <path d="M450 140 C446 146 444 150 442 152" stroke-width="4"/>
+  <!-- gill cover -->
+  <path d="M366 106 C346 140 344 196 366 244" stroke-width="8"/>
+  <path d="M384 200 C374 214 374 230 380 242" stroke-width="4"/>
+  <!-- lateral line -->
+  <path d="M352 176 C296 168 240 184 208 222 C182 254 178 308 198 368" stroke-width="4" opacity=".8"/>
+  <!-- engraving hatches -->
+  <path d="M326 232 C306 236 290 244 278 256" stroke-width="3" opacity=".6"/>
+  <path d="M298 220 C278 226 262 238 250 252" stroke-width="3" opacity=".6"/>
+  <path d="M266 214 C246 224 232 240 224 258" stroke-width="3" opacity=".6"/>
+  <path d="M236 216 C218 232 206 254 202 278" stroke-width="3" opacity=".6"/>
+  <path d="M214 246 C202 264 196 286 196 308" stroke-width="3" opacity=".6"/>
+  <!-- fin rays -->
+  <path d="M326 68 L328 104 M294 66 L300 104 M262 72 L274 106 M234 84 L250 112 M208 102 L228 120 M186 124 L206 132" stroke-width="2.5" opacity=".6"/>
+  <path d="M240 444 L226 414 M226 446 L218 414 M210 450 L212 416" stroke-width="2.5" opacity=".7"/>
+  <path d="M322 268 L278 304 M330 264 L294 298" stroke-width="2.5" opacity=".7"/>
 </g>
-</svg>
+</g></svg>
