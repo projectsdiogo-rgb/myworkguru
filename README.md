@@ -20,3 +20,13 @@ App para organizar o local de trabalho: mapa dos tanques, limpezas semanais, tra
 | `manifest.webmanifest`, `icon-*` | Para instalar no ecrã do telemóvel |
 
 As alterações enviadas para o ramo `main` ficam online no GitHub Pages em 1–2 minutos.
+
+## Folha Google (dados sempre atualizados)
+
+A pasta `planilha/` tem o script que copia os dados da app para uma Google Sheets a cada 5 minutos
+(separadores: Resumo, Tanques, Limpezas, Tratamentos, Transferências, Rações, Movimentos rações, Fichas, Pesagens, Histórico).
+
+1. Criar uma folha no Google Drive (mesma conta Google do Firebase) → Extensões → Apps Script.
+2. Definições do projeto → ativar "Mostrar o ficheiro de manifesto appsscript.json".
+3. Colar `planilha/appsscript.json` e `planilha/Code.gs`, guardar.
+4. Escolher a função `instalar` → Executar → autorizar.
