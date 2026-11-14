@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e7c86">
+<title>Ficha do tanque · MyWorkGuru</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f4;--card:#fff;--text:#14202b;--muted:#5d6b78;--line:#dde2e8;--accent:#0e7c86;--soft:#eef6f7}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1218;--card:#131c24;--text:#e6edf3;--muted:#8d9cab;--line:#25323e;--accent:#2bb3bd;--soft:#16252c}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;padding:16px 14px calc(24px + env(safe-area-inset-bottom));min-height:100vh}
+.wrap{max-width:520px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:8px;font-family:"Space Grotesk",Inter,sans-serif;font-weight:700;color:var(--muted);font-size:14px;margin:4px 2px 12px}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.06);margin-bottom:12px}
+.tank{font-family:"Space Grotesk",Inter,sans-serif;font-size:15px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+h1{font-family:"Space Grotesk",Inter,sans-serif;font-size:34px;line-height:1.05;margin:4px 0 2px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.st{background:var(--soft);border-radius:14px;padding:12px}
+.st span{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.st b{display:block;font-family:"Space Grotesk",Inter,sans-serif;font-size:22px;margin-top:2px}
+.st small{color:var(--muted);font-size:12px}
+.st.wide{grid-column:1/-1}
+h2{font-family:"Space Grotesk",Inter,sans-serif;font-size:17px;margin:0 0 10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:6px 0}
+td{padding:8px 0;border-top:1px solid var(--line)}td.r,th.r{text-align:right}
+.spark{width:100%;height:70px;display:block;margin:4px 0 10px}
+.notes{white-space:pre-wrap;font-size:15px;line-height:1.5}
+.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:14px}
+.foot a{color:var(--accent);font-weight:600}
+.empty{text-align:center;color:var(--muted);padding:26px 10px}
+.list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.list a{display:block;text-align:center;padding:12px 0;border-radius:12px;background:var(--soft);color:var(--text);text-decoration:none;font-family:"Space Grotesk",Inter,sans-serif;font-weight:700}
+.skel{height:18px;border-radius:8px;background:var(--soft);margin:10px 0;animation:p 1.2s infinite}@keyframes p{50%{opacity:.5}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><i><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></i>MyWorkGuru</div>
+  <div id="out"><div class="card"><div class="skel" style="width:30%"></div><div class="skel" style="height:34px;width:70%"></div><div class="skel"></div><div class="skel"></div></div></div>
+</div>
+<script type="module">
+import { FB } from "./firebase.js";
+const out = document.getElementById("out");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (x, d = 1) => (+x || 0).toLocaleString("pt-PT", { maximumFractionDigits: d });
+const fdate = (t) => t ? new Date(t).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+function age(b) { if (!b) return ""; const days = Math.floor((Date.now() - b) / 864e5); if (days < 0) return ""; if (days < 60) return days + (days === 1 ? " dia" : " dias"); const m = Math.floor(days / 30.44); if (m < 24) return m + " meses"; const y = Math.floor(m / 12), r = m % 12; return y + (y === 1 ? " ano" : " anos") + (r ? " e " + r + (r === 1 ? " mês" : " meses") : ""); }
+const TANKS = Array.from({ length: 12 }, (_, i) => "R" + (i + 1));
+const id = new URLSearchParams(location.search).get("t");
+function picker(msg) { out.innerHTML = `<div class="card"><h2>${esc(msg)}</h2><div class="list">${TANKS.map(t => `<a href="?t=${t}">${t}</a>`).join("")}</div></div>`; }
+function spark(P) {
+  const pts = P.filter(w => w.weight > 0).sort((a, b) => a.t - b.t); if (pts.length < 2) return "";
+  const W = 300, H = 70, pad = 6, t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1, mx = Math.max(...pts.map(p => p.weight)), mn = Math.min(...pts.map(p => p.weight));
+  const X = t => pad + (W - 2 * pad) * ((t - t0) / ((t1 - t0) || 1)), Y = v => H - pad - (H - 2 * pad) * ((v - mn) / ((mx - mn) || 1));
+  const d = pts.map((p, i) => (i ? "L" : "M") + X(p.t).toFixed(1) + " " + Y(p.weight).toFixed(1)).join("");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Evolução do peso"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${pts.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.weight).toFixed(1)}" r="3" fill="var(--accent)"/>`).join("")}</svg>`;
+}
+function render(f) {
+  document.title = `${id} · Ficha do tanque`;
+  const P = (f.pesagens || []).slice().sort((a, b) => b.t - a.t), w = P[0];
+  const bio = f.count && w && w.weight ? f.count * w.weight / 1000 : 0;
+  const stats = [
+    ["Idade", age(f.birth) || "—", f.birth ? "desde " + fdate(f.birth) : ""],
+    ["Nº de peixes", f.count ? num(f.count, 0) : "—", ""],
+    ["Peso médio", w && w.weight ? num(w.weight) + " g" : "—", w ? "pesagem de " + fdate(w.t) : ""],
+    ["Tamanho médio", w && w.length ? num(w.length) + " cm" : "—", w ? "pesagem de " + fdate(w.t) : ""],
+    ...(bio ? [["Biomassa estimada", num(bio) + " kg", "nº de peixes × peso médio"]] : []),
+    ["No tanque desde", fdate(f.entry), ""],
+    ...(f.lote ? [["Lote", esc(f.lote), ""]] : []),
+    ...(f.origin ? [["Origem", esc(f.origin), ""]] : [])
+  ];
+  out.innerHTML = `<div class="card"><div class="tank">Tanque ${esc(id)} · Interior</div><h1>${f.species ? esc(f.species) : "Espécie por indicar"}</h1>
+    <div class="grid">${stats.map(([k, v, s], i) => `<div class="st${stats.length % 2 && i === stats.length - 1 ? " wide" : ""}"><span>${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`).join("")}</div></div>
+    ${P.length ? `<div class="card"><h2>Pesagens</h2>${spark(P)}<table><thead><tr><th>Data</th><th class="r">Peso médio</th><th class="r">Tamanho</th></tr></thead><tbody>${P.slice(0, 8).map(x => `<tr><td>${fdate(x.t)}</td><td class="r">${x.weight ? num(x.weight) + " g" : "—"}</td><td class="r">${x.length ? num(x.length) + " cm" : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
+    ${f.notes ? `<div class="card"><h2>Notas</h2><div class="notes">${esc(f.notes)}</div></div>` : ""}
+    <div class="foot">Atualizado em ${fdate(f.updatedAt)} · <a href="./#${esc(id)}">Equipa: abrir na app</a></div>`;
+}
+if (!id || !TANKS.includes(id)) picker(id ? "Tanque não encontrado. Escolha um tanque:" : "Escolha um tanque:");
+else FB.onSnapshot(FB.doc(FB.db, "fichas/" + id), (s) => {
+  if (!s.exists()) { out.innerHTML = `<div class="card"><div class="tank">Tanque ${esc(id)} · Interior</div><div class="empty">Ainda não há informação registada para este tanque.</div></div><div class="foot"><a href="./#${esc(id)}">Equipa: abrir na app</a></div>`; return; }
+  render(s.data());
+}, (e) => { out.innerHTML = `<div class="card"><div class="empty">Não foi possível carregar a ficha.<br><small>${esc(e && e.code || e)}</small></div></div>`; });
+</script>
+</body>
+</html>

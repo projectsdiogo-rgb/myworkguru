@@ -29,6 +29,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Fichas dos tanques: públicas (abertas pelo QR code, sem login); só editores alteram.
+    match /fichas/{id} {
+      allow read: if true;
+      allow write: if canWrite();
+    }
+
     // Dados da app: leitores veem, editores e administrador alteram.
     match /{coll}/{id} {
       allow read: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers'] && canRead();

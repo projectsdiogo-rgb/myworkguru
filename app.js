@@ -1,5 +1,6 @@
 
 import {FB} from "./firebase.js";
+import {qrSvg} from "./qr.js";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -14,10 +15,12 @@ var TABS=[
   {k:"mapa",label:"Mapa",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'},
   {k:"lt",label:"Limpezas e Tratamentos",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>'},
   ,{k:"transf",label:"Transferências",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>'}
+  ,{k:"fichas",label:"Fichas",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>'}
   ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
-function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
+var TAB_SHORT={lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
+function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
 function tabHash(k){return k==="lt"?LT_HASH:(k==="transf"?"transferencias":k)}
 
 /* Layout (quadro 1000x750, segundo o esboço) */
@@ -44,7 +47,7 @@ function natural(a,b){return +a.id.replace(/\D/g,"")-+b.id.replace(/\D/g,"")}
 var UI_KEY="mwg_ui_v1";
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-var state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[]};
+var state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}};
 var ui=Object.assign({tab:"mapa",view:"map",theme:null,cams:{}},lsGet(UI_KEY)||{});
 if(!ui.cams)ui.cams={};
 function saveUI(){lsSet(UI_KEY,ui)}
@@ -67,6 +70,7 @@ function clean(o){return JSON.parse(JSON.stringify(o))}
 function entities(){
   var E={};
   Object.keys(state.tanks).forEach(function(id){E["tanks/"+id]=state.tanks[id]});
+  Object.keys(state.fichas||{}).forEach(function(id){E["fichas/"+id]=state.fichas[id]});
   if(state.products)E["meta/products"]={list:state.products};
   (state.feeds||[]).forEach(function(f){E["feeds/"+f.id]=f});
   (state.feedMoves||[]).forEach(function(m){if(!m.id)m.id=newId("m");E["feedMoves/"+m.id]=m});
@@ -92,13 +96,14 @@ function syncNow(){
   }
 }
 function revertLocal(){
-  var s={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[]};
+  var s={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}};
   Object.keys(synced).forEach(function(k){applyTo(s,k,JSON.parse(synced[k]))});
   state=s;sortArrays();scheduleRender(true);
 }
 function applyTo(s,k,d){
   var i=k.indexOf("/"),coll=k.slice(0,i),id=k.slice(i+1);
   if(coll==="tanks"){if(d)s.tanks[id]=d;else delete s.tanks[id];return}
+  if(coll==="fichas"){if(!s.fichas)s.fichas={};if(d)s.fichas[id]=d;else delete s.fichas[id];return}
   if(coll==="meta"){if(id==="products")s.products=d?d.list:null;return}
   var arr=s[coll];if(!arr)return;
   var j=arr.findIndex(function(x){return x.id===id});
@@ -117,7 +122,7 @@ function scheduleRender(force){
   renderPending=false;renderView();updateNavBadge();updateFeedBadge();
 }
 setInterval(function(){if(renderPending)scheduleRender()},1500);
-var COLLS=["tanks","meta","feeds","feedMoves","transfers"],unsubs=[];
+var COLLS=["tanks","meta","feeds","feedMoves","transfers","fichas"],unsubs=[];
 function startData(){
   if(unsubs.length)return;
   var loaded={};
@@ -139,7 +144,7 @@ function startData(){
     }));
   });
 }
-function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[]}}
+function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
 
 /* ================= Utilitários ================= */
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -266,7 +271,7 @@ function render(){
     '<button class="userbtn" id="userBtn" title="Conta"><span class="uav">'+esc(((me&&me.name)||"?").trim().charAt(0).toUpperCase())+'</span><span class="unm">'+esc((me&&me.name)||"")+(readOnly?' · só leitura':'')+'</span><span class="nbadge low" data-nt style="display:none"></span></button>'+
     '<button class="iconbtn" id="themeBtn" title="Tema claro/escuro"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></header>'+
    '<main id="view"></main>'+
-   '<nav class="tabbar">'+TABS.map(function(t){return '<button data-tab="'+t.k+'">'+t.icon+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
+   '<nav class="tabbar">'+TABS.map(function(t){return '<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
   '</div><div class="toast" id="toast"></div>';
   idleSave();updateTeamBadge();
   $("userBtn").onclick=openAccount;
@@ -283,7 +288,7 @@ function setTab(k,keepSel){
 function setHash(h){try{history.replaceState(null,"",h?"#"+h:location.pathname+location.search)}catch(e){location.hash=h}}
 function renderView(){
   document.querySelectorAll("[data-tab]").forEach(function(b){b.classList.toggle("on",b.dataset.tab===ui.tab)});
-  if(ui.tab==="lt")viewLT();else if(ui.tab==="racoes")viewFeed();else if(ui.tab==="transf")viewTransfers();else viewMap();
+  if(ui.tab==="lt")viewLT();else if(ui.tab==="racoes")viewFeed();else if(ui.tab==="transf")viewTransfers();else if(ui.tab==="fichas")viewFichas();else viewMap();
 }
 function refreshAll(){renderView();updateNavBadge()}
 
@@ -452,7 +457,7 @@ function renderPanel(){
    '<div class="pbody">'+
     '<span class="lbl">Estado</span><div class="statuses">'+STATUSES.map(function(s){return '<button class="sbtn st-'+s.k+(d.status===s.k?' on':'')+'" data-s="'+s.k+'"><i></i>'+s.label+'</button>'}).join("")+'</div>'+
     cleanBox+treatBox+
-    '<span class="lbl">Peixe</span><div style="margin-bottom:18px"><button class="btn ghost" id="x-from-panel">⇄ Transferir peixe</button>'+(function(){var L=transfers().filter(function(x){return x.from===id||x.to===id}).sort(function(a,b){return b.t-a.t})[0];return L?'<div class="meta" style="margin-top:6px">Última: '+esc(trFromLabel(L))+' → '+esc(trToLabel(L))+' · '+fmt(L.t)+'</div>':''})()+'</div>'+
+    '<span class="lbl">Peixe</span><div style="margin-bottom:18px"><div class="row" style="flex-wrap:wrap"><button class="btn ghost" id="x-from-panel">⇄ Transferir peixe</button>'+(t.group==="R"?'<button class="btn ghost" id="fi-from-panel">Ficha do peixe</button>':'')+'</div>'+(function(){var L=transfers().filter(function(x){return x.from===id||x.to===id}).sort(function(a,b){return b.t-a.t})[0];return L?'<div class="meta" style="margin-top:6px">Última: '+esc(trFromLabel(L))+' → '+esc(trToLabel(L))+' · '+fmt(L.t)+'</div>':''})()+'</div>'+
     '<div class="field"><label class="lbl" for="fsp">Espécie</label><input id="fsp" maxlength="40" list="splist" placeholder="Ex.: Robalo, Dourada…" value="'+esc(d.species)+'"><datalist id="splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
     '<div class="field"><label class="lbl" for="fc">Lote / conteúdo</label><input id="fc" maxlength="80" placeholder="Ex.: lote 2311" value="'+esc(d.content)+'"></div>'+
     '<div class="field"><label class="lbl" for="fn">Notas</label><textarea id="fn" placeholder="Observações sobre este tanque">'+esc(d.notes)+'</textarea></div>'+
@@ -473,6 +478,7 @@ function renderPanel(){
   if($("cl-undo"))$("cl-undo").onclick=function(){captureDraft(tankData(id));setCleaned(id,false);refreshTank(id);renderPanel()};
   if($("t-new"))$("t-new").onclick=function(){captureDraft(tankData(id));openTreatModal([id])};
   if($("x-from-panel"))$("x-from-panel").onclick=function(){captureDraft(tankData(id));openTransfer(id)};
+  if($("fi-from-panel"))$("fi-from-panel").onclick=function(){captureDraft(tankData(id));openFicha(id)};
   if($("t-on"))$("t-on").onclick=function(){captureDraft(tankData(id));waterOn(id);showAlert();refreshTank(id);renderPanel();updateNavBadge()};
   if($("t-cancel"))$("t-cancel").onclick=function(){var b=$("t-cancel");if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar cancelar";b.className="btn danger";return}captureDraft(tankData(id));cancelTreatment(id);showAlert();refreshTank(id);renderPanel();updateNavBadge()};
   var fc=$("fc"),fn=$("fn"),fs=$("fsave"),fsp=$("fsp");
@@ -813,6 +819,93 @@ function showTransfer(id){
     '<div class="row" style="margin-top:14px">'+(BYID[x.from]?'<button class="btn ghost" data-go="'+x.from+'">Ver '+esc(BYID[x.from].label)+'</button>':'')+(BYID[x.to]?'<button class="btn ghost" data-go="'+x.to+'">Ver '+esc(BYID[x.to].label)+'</button>':'')+'<button class="btn ghost" id="x-del" style="margin-left:auto">Apagar</button></div>',function(m){
     m.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){closeSheet();select(b.dataset.go)}});
     $("x-del").onclick=function(){var b=$("x-del");if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar apagar";b.className="btn danger";return}closeSheet();deleteTransfer(id)};
+  });
+}
+
+/* ================= Separador: FICHAS (informação pública do peixe por tanque) ================= */
+var FICHA_TANKS=TANKS.filter(function(t){return t.group==="R"}).sort(natural);
+function fichas(){if(!state.fichas)state.fichas={};return state.fichas}
+function fichaOf(id){return fichas()[id]||null}
+function lastWeigh(f){if(!f||!f.pesagens||!f.pesagens.length)return null;return f.pesagens.slice().sort(function(a,b){return b.t-a.t})[0]}
+function fmtDate(t){return t?new Date(t).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"}):"—"}
+function dateVal(t){if(!t)return"";var d=new Date(t);function p(n){return(n<10?"0":"")+n}return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())}
+function parseDate(v){if(!v)return 0;var d=new Date(v+"T12:00:00");return isNaN(d)?0:d.getTime()}
+function ageText(birth){
+  if(!birth)return"";var days=Math.floor((Date.now()-birth)/864e5);if(days<0)return"";
+  if(days<60)return days+(days===1?" dia":" dias");
+  var m=Math.floor(days/30.44);if(m<24)return m+" meses";
+  var y=Math.floor(m/12),r=m%12;return y+(y===1?" ano":" anos")+(r?" e "+r+(r===1?" mês":" meses"):"");
+}
+function num(x,d){return(+x||0).toLocaleString("pt-PT",{maximumFractionDigits:d==null?1:d})}
+function fichaUrl(id){return new URL("ficha.html?t="+encodeURIComponent(id),location.href.split("#")[0]).href}
+function viewFichas(){
+  var v=$("view");
+  v.innerHTML='<div class="pagehead"><div><h1>Fichas dos tanques</h1><p>Informação do peixe em cada tanque interior. É a que aparece a quem ler o QR code do tanque (sem login).</p></div><a class="btn ghost" href="qrs.html" target="_blank" rel="noopener">Imprimir QR codes</a></div>'+
+   '<div class="figrid">'+FICHA_TANKS.map(function(t){
+     var f=fichaOf(t.id)||{},w=lastWeigh(f),sp=f.species||peek(t.id).species||"",age=ageText(f.birth);
+     var empty=!sp&&!w&&!f.count&&!f.birth;
+     return '<div class="ficard'+(empty?' empty':'')+'"><div class="fi-h"><span class="fi-t">'+esc(t.label)+'</span><button class="iconbtn sm" data-qr="'+t.id+'" title="QR code" aria-label="QR code de '+esc(t.label)+'">'+QR_ICON+'</button></div>'+
+       '<div class="fi-sp">'+(sp?esc(sp):'<span class="muted">Sem espécie</span>')+'</div>'+
+       '<div class="fi-stats">'+
+         '<div><span>Idade</span><b>'+(age||'—')+'</b></div>'+
+         '<div><span>Nº peixes</span><b>'+(f.count?num(f.count,0):'—')+'</b></div>'+
+         '<div><span>Peso médio</span><b>'+(w&&w.weight?num(w.weight)+' g':'—')+'</b></div>'+
+         '<div><span>Tamanho</span><b>'+(w&&w.length?num(w.length)+' cm':'—')+'</b></div>'+
+       '</div>'+
+       '<div class="fi-foot">'+(w?'Última pesagem: '+fmtDate(w.t):'Sem pesagens')+'</div>'+
+       '<button class="btn '+(empty?'':'ghost ')+'fi-edit" data-fe="'+t.id+'">'+(empty?'Preencher ficha':'Editar ficha')+'</button></div>';
+   }).join("")+'</div>';
+  v.querySelectorAll("[data-fe]").forEach(function(b){b.onclick=function(){openFicha(b.dataset.fe)}});
+  v.querySelectorAll("[data-qr]").forEach(function(b){b.onclick=function(){openQr(b.dataset.qr)}});
+}
+var QR_ICON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>';
+function openQr(id){
+  var url=fichaUrl(id),svg="";try{svg=qrSvg(url)}catch(e){svg='<p class="auth-err">'+esc(e.message)+'</p>'}
+  openSheet("QR code · "+esc(BYID[id].label),"Quem ler este código vê a ficha pública do tanque",
+    '<div class="qrbox">'+svg+'<div class="qr-cap">'+esc(BYID[id].label)+'</div></div>'+
+    '<p class="hint" style="word-break:break-all;text-align:center">'+esc(url)+'</p>'+
+    '<div class="row"><a class="btn" style="flex:1;text-align:center;text-decoration:none" href="'+esc(url)+'" target="_blank" rel="noopener">Abrir ficha pública</a><a class="btn ghost" style="text-decoration:none" href="qrs.html" target="_blank" rel="noopener">Imprimir todos</a></div>',function(){});
+}
+function openFicha(id,keep){
+  var t=BYID[id],f=keep||clean(fichaOf(id)||{species:peek(id).species||"",pesagens:[]});
+  if(!f.pesagens)f.pesagens=[];
+  var P=f.pesagens.slice().sort(function(a,b){return b.t-a.t});
+  var body='<p class="pubnote">🌐 Esta ficha é pública: qualquer pessoa com o QR code do tanque a pode ver.</p>'+
+   '<div class="formgrid">'+
+    '<div class="field full"><label class="lbl" for="fi-sp">Espécie</label><input id="fi-sp" maxlength="40" list="fi-splist" placeholder="Ex.: Robalo" value="'+esc(f.species||"")+'"><datalist id="fi-splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
+    '<div class="field"><label class="lbl" for="fi-birth">Nascimento / eclosão</label><input id="fi-birth" type="date" value="'+dateVal(f.birth)+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-in">Entrada no tanque</label><input id="fi-in" type="date" value="'+dateVal(f.entry)+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-count">Nº de peixes</label><input id="fi-count" type="number" inputmode="numeric" min="0" value="'+(f.count||"")+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-lote">Lote</label><input id="fi-lote" maxlength="40" value="'+esc(f.lote||"")+'"></div>'+
+    '<div class="field full"><label class="lbl" for="fi-orig">Origem</label><input id="fi-orig" maxlength="60" placeholder="Ex.: maternidade, fornecedor…" value="'+esc(f.origin||"")+'"></div>'+
+    '<div class="field full"><label class="lbl" for="fi-notes">Notas (visíveis na ficha)</label><textarea id="fi-notes" maxlength="400" style="min-height:70px">'+esc(f.notes||"")+'</textarea></div>'+
+   '</div>'+
+   '<div class="row" style="margin-bottom:18px"><button class="btn" id="fi-save" style="flex:1">Guardar ficha</button><a class="btn ghost" style="text-decoration:none" href="'+esc(fichaUrl(id))+'" target="_blank" rel="noopener">Ver pública</a></div>'+
+   '<span class="lbl">Pesagens</span>'+
+   '<div class="wform"><div class="formgrid">'+
+     '<div class="field"><label class="lbl" for="pw-d">Data</label><input id="pw-d" type="date" value="'+dateVal(Date.now())+'"></div>'+
+     '<div class="field"><label class="lbl" for="pw-n">Amostra (nº)</label><input id="pw-n" type="number" inputmode="numeric" min="0" placeholder="Opcional"></div>'+
+     '<div class="field"><label class="lbl" for="pw-w">Peso médio (g)</label><input id="pw-w" type="number" inputmode="decimal" min="0" step="0.1"></div>'+
+     '<div class="field"><label class="lbl" for="pw-l">Tamanho médio (cm)</label><input id="pw-l" type="number" inputmode="decimal" min="0" step="0.1"></div>'+
+   '</div><button class="btn purple" id="pw-add" style="width:100%">+ Registar pesagem</button></div>'+
+   (P.length?'<table class="htable" style="margin-top:10px"><thead><tr><th>Data</th><th style="text-align:right">Peso</th><th style="text-align:right">Tamanho</th><th></th></tr></thead><tbody>'+
+     P.map(function(w){return '<tr><td>'+fmtDate(w.t)+(w.n?'<div class="sub">amostra '+num(w.n,0)+'</div>':'')+(w.by?'<div class="sub">por '+esc(w.by)+'</div>':'')+'</td><td style="text-align:right">'+(w.weight?num(w.weight)+' g':'—')+'</td><td style="text-align:right">'+(w.length?num(w.length)+' cm':'—')+'</td><td style="text-align:right"><button class="linkbtn" data-pwdel="'+esc(w.id)+'" title="Apagar">×</button></td></tr>'}).join("")+'</tbody></table>':'<p class="hint" style="margin-top:8px">Ainda sem pesagens.</p>');
+  openSheet("Ficha · "+esc(t.label),f.updatedAt?"Atualizada em "+fmt(f.updatedAt)+(f.by?" por "+esc(f.by):""):"Ficha nova",body,function(){
+    function read(){f.species=$("fi-sp").value.trim();f.birth=parseDate($("fi-birth").value);f.entry=parseDate($("fi-in").value);f.count=Math.max(0,parseInt($("fi-count").value,10)||0);f.lote=$("fi-lote").value.trim();f.origin=$("fi-orig").value.trim();f.notes=$("fi-notes").value.trim()}
+    function save(msg){
+      read();f.updatedAt=Date.now();f.by=me?me.name:"";fichas()[id]=clean(f);
+      var td=tankData(id);if(f.species&&td.species!==f.species){td.species=f.species;td.updatedAt=Date.now()}
+      logTo(td,msg);persist(t.label+": "+msg.toLowerCase());
+    }
+    $("fi-save").onclick=function(){save("Ficha atualizada");closeSheet();if(ui.tab==="fichas")viewFichas()};
+    $("pw-add").onclick=function(){
+      var w=parseFloat(String($("pw-w").value).replace(",",".")),l=parseFloat(String($("pw-l").value).replace(",",".")),n=parseInt($("pw-n").value,10),d=parseDate($("pw-d").value)||Date.now();
+      if(!(w>0)&&!(l>0)){toast("Indique o peso médio ou o tamanho");return}
+      read();f.pesagens.push({id:newId("w"),t:d,weight:w>0?Math.round(w*10)/10:0,length:l>0?Math.round(l*10)/10:0,n:n>0?n:0,by:me?me.name:""});
+      save("Pesagem registada"+(w>0?": "+num(w)+" g":"")+(l>0?" · "+num(l)+" cm":""));openFicha(id);if(ui.tab==="fichas")viewFichas();
+    };
+    document.querySelectorAll("[data-pwdel]").forEach(function(b){b.onclick=function(){if(!b.dataset.c){b.dataset.c=1;b.textContent="apagar?";b.style.color="var(--alert)";return}
+      read();f.pesagens=f.pesagens.filter(function(w){return w.id!==b.dataset.pwdel});save("Pesagem apagada");openFicha(id);if(ui.tab==="fichas")viewFichas()}});
   });
 }
 
