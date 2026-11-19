@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261119200328">
+<link rel="modulepreload" href="app.js?v=20261119203128">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
@@ -389,7 +389,7 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 .ro .cl-past{display:none!important}
 /* ---- v13: fichas ---- */
 .figrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.ficard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.ficard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:0;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
 .ficard.empty{border-style:dashed;box-shadow:none}
 .fi-h{display:flex;align-items:center;justify-content:space-between}
 .fi-t{font-family:var(--display);font-weight:700;font-size:22px}
@@ -464,11 +464,39 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
   .savestate span{display:none}
 }
 @keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+
+/* v14 fichas com fotografias */
+.fi-body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.fi-cover{height:130px;background:var(--surface2) center/cover no-repeat;position:relative}
+.fi-cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.55))}
+.fi-t.on-img{position:absolute;left:14px;bottom:8px;color:#fff;z-index:1;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+.fi-qr{position:absolute;top:10px;right:10px;z-index:1}
+.fi-sci{font-weight:400;color:var(--muted);font-size:13px}
+.fsec{font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+.fsec:first-of-type{border-top:0;padding-top:0}
+.up-form .pchips{margin-bottom:10px}
+.up-btn{display:block;text-align:center;cursor:pointer;width:100%}
+.up-btn.busy{opacity:.55;pointer-events:none}
+.gal-h{font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 6px}.gal-h span{background:var(--surface2);border-radius:99px;padding:1px 7px;margin-left:4px}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.gal-i{margin:0;position:relative;border-radius:10px;overflow:hidden;background:var(--surface2);aspect-ratio:1}
+.gal-i img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.gal-i.cover{outline:3px solid var(--accent);outline-offset:-3px}
+.gal-badge{position:absolute;left:5px;top:5px;background:var(--accent);color:var(--accent-ink);font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 6px}
+.gal-act{position:absolute;right:4px;top:4px;display:flex;gap:4px}
+.gal-act button{width:26px;height:26px;border-radius:8px;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+.gal-act button.warn{background:var(--alert)}
+.gal-i figcaption{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 4px;font-size:11px;color:#fff;background:linear-gradient(180deg,transparent,rgba(0,0,0,.6));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv{position:fixed;inset:0;z-index:200;background:rgba(5,10,15,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(16px + var(--safe-t)) 12px calc(16px + var(--safe-b))}
+.pv-img{max-width:100%;max-height:82vh;border-radius:8px;object-fit:contain}
+.pv-x{position:absolute;top:calc(10px + var(--safe-t));right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:24px;cursor:pointer}
+.pv-cap{color:#e6edf3;font-size:14px;margin-top:10px;text-align:center}.pv-cap span{display:block;color:#8d9cab;font-size:12px;margin-top:2px}
+.ro .up-form,.ro .gal-act{display:none!important}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261119200328"></script>
+<script type="module" src="app.js?v=20261119203128"></script>
 </body>
 </html>

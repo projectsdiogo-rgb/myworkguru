@@ -1,7 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261119200328";
+var APP_VERSION="20261119203128";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -167,7 +167,7 @@ function snapErr(err){
   if(err&&err.code==="permission-denied")showAuthMsg("Sem permissão para ver os dados. Peça ao administrador para aprovar o seu acesso.");
   else toast("Erro de ligação: "+(err&&err.code||err));
 }
-function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];LAZY={transfers:null,feedMoves:null};synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
+function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];LAZY={transfers:null,feedMoves:null};photos={};photosOn=false;synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
 
 /* ================= Utilitários ================= */
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -712,7 +712,7 @@ function openSheet(title,sub,body,bind){
   m.querySelector(".tm-back").onclick=closeSheet;m.querySelectorAll("[data-x]").forEach(function(b){b.onclick=closeSheet});
   bind(m);
 }
-function closeSheet(){var m=$("fmodal");if(m)m.remove()}
+function closeSheet(){var m=$("fmodal");if(m)m.remove();fichaOpenId=null}
 function numVal(id){var el=$(id);if(!el)return 0;var v=parseFloat(String(el.value).replace(",","."));return isFinite(v)?v:0}
 /* retirar / entrada */
 function openFeedMove(id,dir){
@@ -890,23 +890,102 @@ function ageText(birth){
   var y=Math.floor(m/12),r=m%12;return y+(y===1?" ano":" anos")+(r?" e "+r+(r===1?" mês":" meses"):"");
 }
 function num(x,d){return(+x||0).toLocaleString("pt-PT",{maximumFractionDigits:d==null?1:d})}
-function fichaUrl(id){return new URL("ficha.html?t="+encodeURIComponent(id),location.href.split("#")[0]).href}
+function numIn(id){var v=$(id)?String($(id).value).replace(",",".").trim():"";if(v==="")return null;var n=parseFloat(v);return isFinite(n)?n:null}
+function fichaUrl(id){return new URL("ficha.html?t="+encodeURIComponent(id),location.href.split("#")[0].split("?")[0]).href}
+
+/* ---- Fotografias (guardadas comprimidas no Firestore: "fotos" = miniatura + dados, "fotosFull" = imagem) ---- */
+var PHOTO_CATS=[{k:"especie",label:"Espécie"},{k:"amostragem",label:"Amostragens"},{k:"praticas",label:"Práticas"}];
+var PCAT={};PHOTO_CATS.forEach(function(c){PCAT[c.k]=c.label});
+var photos={},photosOn=false,fichaOpenId=null,photoCat="especie";
+function ensurePhotos(){
+  if(photosOn||!FB.db)return;photosOn=true;
+  unsubs.push(FB.onSnapshot(FB.collection(FB.db,"fotos"),function(s){
+    s.docChanges().forEach(function(ch){if(ch.type==="removed")delete photos[ch.doc.id];else{var d=ch.doc.data();d.id=ch.doc.id;photos[ch.doc.id]=d}});
+    if(fichaOpenId&&$("fi-gallery"))renderFichaGallery(fichaOpenId);
+    if(ui.tab==="fichas"&&!isBusy())viewFichas();
+  },snapErr));
+}
+function tankPhotos(id,cat){return Object.keys(photos).map(function(k){return photos[k]}).filter(function(p){return p.tank===id&&(!cat||p.cat===cat)}).sort(function(a,b){return(b.t||0)-(a.t||0)})}
+function coverOf(id){var f=fichaOf(id)||{};if(f.cover&&photos[f.cover])return photos[f.cover];return tankPhotos(id,"especie")[0]||null}
+function loadImg(file){return new Promise(function(res,rej){var u=URL.createObjectURL(file),i=new Image();i.onload=function(){res(i)};i.onerror=function(){rej(new Error("Imagem inválida"))};i.src=u})}
+function toJpeg(img,max,q){var W=img.naturalWidth,H=img.naturalHeight,r=Math.min(1,max/Math.max(W,H)),w=Math.max(1,Math.round(W*r)),h=Math.max(1,Math.round(H*r)),c=document.createElement("canvas");c.width=w;c.height=h;var g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,w,h);g.drawImage(img,0,0,w,h);return{data:c.toDataURL("image/jpeg",q),w:w,h:h}}
+function prepPhoto(file){
+  return loadImg(file).then(function(img){
+    var max=1600,q=.82,full=toJpeg(img,max,q);
+    while(full.data.length>850000&&q>.45){q-=.08;if(q<.6)max=1280;full=toJpeg(img,max,q)}
+    return{full:full,thumb:toJpeg(img,420,.72)};
+  });
+}
+function uploadPhotos(id,files,cat,caption,when){
+  var list=Array.prototype.slice.call(files||[]).filter(function(f){return /^image\//.test(f.type)||/\.(jpe?g|png|heic|webp)$/i.test(f.name)});
+  if(!list.length)return Promise.resolve(0);
+  var st=$("fi-up-status"),done=0;
+  function next(i){
+    if(i>=list.length)return Promise.resolve(done);
+    if(st)st.textContent="A preparar "+(i+1)+" de "+list.length+"…";
+    return prepPhoto(list[i]).then(function(p){
+      var pid=newId("f"),b=FB.writeBatch(FB.db),t=when||Date.now();
+      b.set(FB.doc(FB.db,"fotos/"+pid),{tank:id,cat:cat,caption:caption||"",t:t,by:me?me.name:"",w:p.full.w,h:p.full.h,thumb:p.thumb.data,createdAt:Date.now()});
+      b.set(FB.doc(FB.db,"fotosFull/"+pid),{tank:id,data:p.full.data});
+      if(st)st.textContent="A enviar "+(i+1)+" de "+list.length+"…";
+      return b.commit().then(function(){done++;});
+    }).catch(function(e){toast("Não foi possível enviar "+list[i].name+": "+(e&&e.code||e&&e.message||e))}).then(function(){return next(i+1)});
+  }
+  return next(0).then(function(n){
+    if(st)st.textContent=n?(n===1?"1 fotografia adicionada.":n+" fotografias adicionadas."):"";
+    if(n){var td=tankData(id);logTo(td,(n===1?"Fotografia adicionada":n+" fotografias adicionadas")+" ("+PCAT[cat]+")");td.updatedAt=Date.now();persist(null)}
+    return n;
+  });
+}
+function deletePhoto(pid){
+  var p=photos[pid];if(!p)return;var b=FB.writeBatch(FB.db);
+  b.delete(FB.doc(FB.db,"fotos/"+pid));b.delete(FB.doc(FB.db,"fotosFull/"+pid));
+  b.commit().then(function(){
+    var f=fichaOf(p.tank);if(f&&f.cover===pid){f.cover="";persist(null)}
+    toast("Fotografia apagada");
+  }).catch(function(e){toast("Erro ao apagar: "+(e&&e.code||e))});
+}
+function setCover(id,pid){var f=fichaOf(id)||{species:peek(id).species||"",pesagens:[]};f=clean(f);f.cover=pid;fichas()[id]=f;persist("Capa da ficha atualizada");renderFichaGallery(id)}
+function openPhotoViewer(pid){
+  var p=photos[pid];if(!p)return;
+  var ov=document.createElement("div");ov.className="pv";ov.innerHTML='<button class="pv-x" aria-label="Fechar">×</button><img class="pv-img" src="'+p.thumb+'" alt=""><div class="pv-cap"><b>'+esc(PCAT[p.cat]||"")+'</b>'+(p.caption?' · '+esc(p.caption):'')+'<span>'+fmtDate(p.t)+(p.by?' · '+esc(p.by):'')+'</span></div>';
+  document.body.appendChild(ov);
+  ov.onclick=function(e){if(e.target===ov||e.target.classList.contains("pv-x"))ov.remove()};
+  FB.getDoc(FB.doc(FB.db,"fotosFull/"+pid)).then(function(s){if(s.exists()){var im=ov.querySelector(".pv-img");if(im)im.src=s.data().data}}).catch(function(){});
+}
+function renderFichaGallery(id){
+  var g=$("fi-gallery");if(!g)return;var f=fichaOf(id)||{},cov=coverOf(id),L=tankPhotos(id);
+  if(!L.length){g.innerHTML='<p class="hint" style="margin:8px 0 0">Ainda sem fotografias.</p>';return}
+  g.innerHTML=PHOTO_CATS.map(function(c){var P=L.filter(function(p){return p.cat===c.k});if(!P.length)return"";
+    return '<div class="gal-h">'+c.label+' <span>'+P.length+'</span></div><div class="gal">'+P.map(function(p){var isC=cov&&cov.id===p.id;
+      return '<figure class="gal-i'+(isC?' cover':'')+'"><img src="'+p.thumb+'" alt="'+esc(p.caption||c.label)+'" data-pv="'+p.id+'" loading="lazy">'+
+        (isC?'<span class="gal-badge">Capa</span>':'')+
+        '<div class="gal-act"><button data-cov="'+p.id+'" title="Usar como capa da ficha" aria-label="Usar como capa">★</button><button data-pdel2="'+p.id+'" title="Apagar" aria-label="Apagar">×</button></div>'+
+        (p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>'}).join("")+'</div>'}).join("");
+  g.querySelectorAll("[data-pv]").forEach(function(im){im.onclick=function(){openPhotoViewer(im.dataset.pv)}});
+  g.querySelectorAll("[data-cov]").forEach(function(b){b.onclick=function(){setCover(id,b.dataset.cov)}});
+  g.querySelectorAll("[data-pdel2]").forEach(function(b){b.onclick=function(){if(!b.dataset.c){b.dataset.c=1;b.textContent="?";b.classList.add("warn");b.title="Tocar outra vez para apagar";return}deletePhoto(b.dataset.pdel2)}});
+}
+
 function viewFichas(){
+  ensurePhotos();
   var v=$("view");
-  v.innerHTML='<div class="pagehead"><div><h1>Fichas dos tanques</h1><p>Informação do peixe em cada tanque interior. É a que aparece a quem ler o QR code do tanque (sem login).</p></div><a class="btn ghost" href="qrs.html" target="_blank" rel="noopener">Imprimir QR codes</a></div>'+
+  v.innerHTML='<div class="pagehead"><div><h1>Fichas dos tanques</h1><p>Informação do peixe em cada tanque interior. É o que vê quem ler o QR code do tanque (sem login).</p></div><a class="btn ghost" href="qrs.html" target="_blank" rel="noopener">Imprimir QR codes</a></div>'+
    '<div class="figrid">'+FICHA_TANKS.map(function(t){
-     var f=fichaOf(t.id)||{},w=lastWeigh(f),sp=f.species||peek(t.id).species||"",age=ageText(f.birth);
+     var f=fichaOf(t.id)||{},w=lastWeigh(f),sp=f.species||peek(t.id).species||"",age=ageText(f.birth),cov=coverOf(t.id),np=tankPhotos(t.id).length;
      var empty=!sp&&!w&&!f.count&&!f.birth;
-     return '<div class="ficard'+(empty?' empty':'')+'"><div class="fi-h"><span class="fi-t">'+esc(t.label)+'</span><button class="iconbtn sm" data-qr="'+t.id+'" title="QR code" aria-label="QR code de '+esc(t.label)+'">'+QR_ICON+'</button></div>'+
-       '<div class="fi-sp">'+(sp?esc(sp):'<span class="muted">Sem espécie</span>')+'</div>'+
+     return '<div class="ficard'+(empty?' empty':'')+'">'+
+       (cov?'<div class="fi-cover" style="background-image:url('+cov.thumb+')"><span class="fi-t on-img">'+esc(t.label)+'</span><span class="fi-qr">'+'<button class="iconbtn sm" data-qr="'+t.id+'" title="QR code" aria-label="QR code de '+esc(t.label)+'">'+QR_ICON+'</button>'+'</span></div>':'')+
+       '<div class="fi-body">'+(cov?'':'<div class="fi-h"><span class="fi-t">'+esc(t.label)+'</span>'+'<button class="iconbtn sm" data-qr="'+t.id+'" title="QR code" aria-label="QR code de '+esc(t.label)+'">'+QR_ICON+'</button>'+'</div>')+
+       '<div class="fi-sp">'+(sp?esc(sp):'<span class="muted">Sem espécie</span>')+(f.sci?' <i class="fi-sci">'+esc(f.sci)+'</i>':'')+'</div>'+
        '<div class="fi-stats">'+
          '<div><span>Idade</span><b>'+(age||'—')+'</b></div>'+
          '<div><span>Nº peixes</span><b>'+(f.count?num(f.count,0):'—')+'</b></div>'+
          '<div><span>Peso médio</span><b>'+(w&&w.weight?num(w.weight)+' g':'—')+'</b></div>'+
          '<div><span>Tamanho</span><b>'+(w&&w.length?num(w.length)+' cm':'—')+'</b></div>'+
        '</div>'+
-       '<div class="fi-foot">'+(w?'Última pesagem: '+fmtDate(w.t):'Sem pesagens')+'</div>'+
-       '<button class="btn '+(empty?'':'ghost ')+'fi-edit" data-fe="'+t.id+'">'+(empty?'Preencher ficha':'Editar ficha')+'</button></div>';
+       '<div class="fi-foot">'+(w?'Última pesagem: '+fmtDate(w.t):'Sem pesagens')+(np?' · '+np+(np===1?' foto':' fotos'):'')+'</div>'+
+       '<button class="btn '+(empty?'':'ghost ')+'fi-edit" data-fe="'+t.id+'">'+(empty?'Preencher ficha':'Editar ficha')+'</button></div></div>';
    }).join("")+'</div>';
   v.querySelectorAll("[data-fe]").forEach(function(b){b.onclick=function(){openFicha(b.dataset.fe)}});
   v.querySelectorAll("[data-qr]").forEach(function(b){b.onclick=function(){openQr(b.dataset.qr)}});
@@ -919,22 +998,41 @@ function openQr(id){
     '<p class="hint" style="word-break:break-all;text-align:center">'+esc(url)+'</p>'+
     '<div class="row"><a class="btn" style="flex:1;text-align:center;text-decoration:none" href="'+esc(url)+'" target="_blank" rel="noopener">Abrir ficha pública</a><a class="btn ghost" style="text-decoration:none" href="qrs.html" target="_blank" rel="noopener">Imprimir todos</a></div>',function(){});
 }
-function openFicha(id,keep){
-  var t=BYID[id],f=keep||clean(fichaOf(id)||{species:peek(id).species||"",pesagens:[]});
+function openFicha(id){
+  ensurePhotos();fichaOpenId=id;
+  var t=BYID[id],f=clean(fichaOf(id)||{species:peek(id).species||"",pesagens:[]});
   if(!f.pesagens)f.pesagens=[];
   var P=f.pesagens.slice().sort(function(a,b){return b.t-a.t});
+  function v(x){return x==null||x===""?"":esc(x)}
   var body='<p class="pubnote">🌐 Esta ficha é pública: qualquer pessoa com o QR code do tanque a pode ver.</p>'+
-   '<div class="formgrid">'+
-    '<div class="field full"><label class="lbl" for="fi-sp">Espécie</label><input id="fi-sp" maxlength="40" list="fi-splist" placeholder="Ex.: Robalo" value="'+esc(f.species||"")+'"><datalist id="fi-splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
+   '<div class="fsec">Espécie</div><div class="formgrid">'+
+    '<div class="field"><label class="lbl" for="fi-sp">Nome comum</label><input id="fi-sp" maxlength="40" list="fi-splist" placeholder="Ex.: Robalo" value="'+v(f.species)+'"><datalist id="fi-splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
+    '<div class="field"><label class="lbl" for="fi-sci">Nome científico</label><input id="fi-sci" maxlength="60" placeholder="Ex.: Dicentrarchus labrax" value="'+v(f.sci)+'"></div>'+
+    '<div class="field full"><label class="lbl" for="fi-about">Sobre a espécie</label><textarea id="fi-about" maxlength="900" style="min-height:80px" placeholder="Curiosidades, habitat, porque é estudada aqui…">'+v(f.about)+'</textarea></div>'+
+   '</div>'+
+   '<div class="fsec">Lote e população</div><div class="formgrid">'+
     '<div class="field"><label class="lbl" for="fi-birth">Nascimento / eclosão</label><input id="fi-birth" type="date" value="'+dateVal(f.birth)+'"></div>'+
     '<div class="field"><label class="lbl" for="fi-in">Entrada no tanque</label><input id="fi-in" type="date" value="'+dateVal(f.entry)+'"></div>'+
     '<div class="field"><label class="lbl" for="fi-count">Nº de peixes</label><input id="fi-count" type="number" inputmode="numeric" min="0" value="'+(f.count||"")+'"></div>'+
-    '<div class="field"><label class="lbl" for="fi-lote">Lote</label><input id="fi-lote" maxlength="40" value="'+esc(f.lote||"")+'"></div>'+
-    '<div class="field full"><label class="lbl" for="fi-orig">Origem</label><input id="fi-orig" maxlength="60" placeholder="Ex.: maternidade, fornecedor…" value="'+esc(f.origin||"")+'"></div>'+
-    '<div class="field full"><label class="lbl" for="fi-notes">Notas (visíveis na ficha)</label><textarea id="fi-notes" maxlength="400" style="min-height:70px">'+esc(f.notes||"")+'</textarea></div>'+
+    '<div class="field"><label class="lbl" for="fi-lote">Lote</label><input id="fi-lote" maxlength="40" value="'+v(f.lote)+'"></div>'+
+    '<div class="field full"><label class="lbl" for="fi-orig">Origem</label><input id="fi-orig" maxlength="60" placeholder="Ex.: maternidade, fornecedor…" value="'+v(f.origin)+'"></div>'+
    '</div>'+
+   '<div class="fsec">Condições do tanque</div><div class="formgrid">'+
+    '<div class="field"><label class="lbl" for="fi-temp">Temperatura (°C)</label><input id="fi-temp" type="number" inputmode="decimal" step="0.1" value="'+(f.temp!=null?f.temp:"")+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-sal">Salinidade (‰)</label><input id="fi-sal" type="number" inputmode="decimal" step="0.1" value="'+(f.sal!=null?f.sal:"")+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-o2">Oxigénio (mg/L)</label><input id="fi-o2" type="number" inputmode="decimal" step="0.1" value="'+(f.o2!=null?f.o2:"")+'"></div>'+
+    '<div class="field"><label class="lbl" for="fi-feed">Alimentação</label><input id="fi-feed" maxlength="60" placeholder="Ex.: ração 2 mm, 3×/dia" value="'+v(f.feed)+'"></div>'+
+   '</div>'+
+   '<div class="field"><label class="lbl" for="fi-notes">Notas (visíveis na ficha)</label><textarea id="fi-notes" maxlength="400" style="min-height:60px">'+v(f.notes)+'</textarea></div>'+
    '<div class="row" style="margin-bottom:18px"><button class="btn" id="fi-save" style="flex:1">Guardar ficha</button><a class="btn ghost" style="text-decoration:none" href="'+esc(fichaUrl(id))+'" target="_blank" rel="noopener">Ver pública</a></div>'+
-   '<span class="lbl">Pesagens</span>'+
+   '<div class="fsec">Fotografias</div>'+
+   '<div class="wform up-form"><div class="pchips" id="fi-cats">'+PHOTO_CATS.map(function(c){return '<button class="pchip'+(photoCat===c.k?' on':'')+'" data-pc="'+c.k+'">'+c.label+'</button>'}).join("")+'</div>'+
+     '<div class="formgrid"><div class="field"><label class="lbl" for="fi-pcap">Legenda (opcional)</label><input id="fi-pcap" maxlength="80" placeholder="Ex.: amostragem de outubro"></div>'+
+     '<div class="field"><label class="lbl" for="fi-pdate">Data da fotografia</label><input id="fi-pdate" type="date" value="'+dateVal(Date.now())+'"></div></div>'+
+     '<label class="btn purple up-btn" for="fi-files">＋ Adicionar fotografias</label><input id="fi-files" type="file" accept="image/*" multiple hidden>'+
+     '<p class="hint" id="fi-up-status" style="margin:8px 0 0"></p></div>'+
+   '<div id="fi-gallery"></div>'+
+   '<div class="fsec" style="margin-top:18px">Pesagens</div>'+
    '<div class="wform"><div class="formgrid">'+
      '<div class="field"><label class="lbl" for="pw-d">Data</label><input id="pw-d" type="date" value="'+dateVal(Date.now())+'"></div>'+
      '<div class="field"><label class="lbl" for="pw-n">Amostra (nº)</label><input id="pw-n" type="number" inputmode="numeric" min="0" placeholder="Opcional"></div>'+
@@ -943,22 +1041,37 @@ function openFicha(id,keep){
    '</div><button class="btn purple" id="pw-add" style="width:100%">+ Registar pesagem</button></div>'+
    (P.length?'<table class="htable" style="margin-top:10px"><thead><tr><th>Data</th><th style="text-align:right">Peso</th><th style="text-align:right">Tamanho</th><th></th></tr></thead><tbody>'+
      P.map(function(w){return '<tr><td>'+fmtDate(w.t)+(w.n?'<div class="sub">amostra '+num(w.n,0)+'</div>':'')+(w.by?'<div class="sub">por '+esc(w.by)+'</div>':'')+'</td><td style="text-align:right">'+(w.weight?num(w.weight)+' g':'—')+'</td><td style="text-align:right">'+(w.length?num(w.length)+' cm':'—')+'</td><td style="text-align:right"><button class="linkbtn" data-pwdel="'+esc(w.id)+'" title="Apagar">×</button></td></tr>'}).join("")+'</tbody></table>':'<p class="hint" style="margin-top:8px">Ainda sem pesagens.</p>');
-  openSheet("Ficha · "+esc(t.label),f.updatedAt?"Atualizada em "+fmt(f.updatedAt)+(f.by?" por "+esc(f.by):""):"Ficha nova",body,function(){
-    function read(){f.species=$("fi-sp").value.trim();f.birth=parseDate($("fi-birth").value);f.entry=parseDate($("fi-in").value);f.count=Math.max(0,parseInt($("fi-count").value,10)||0);f.lote=$("fi-lote").value.trim();f.origin=$("fi-orig").value.trim();f.notes=$("fi-notes").value.trim()}
+  openSheet("Ficha · "+esc(t.label),f.updatedAt?"Atualizada em "+fmt(f.updatedAt)+(f.by?" por "+esc(f.by):""):"Ficha nova",body,function(m){
+        function read(){
+      f.species=$("fi-sp").value.trim();f.sci=$("fi-sci").value.trim();f.about=$("fi-about").value.trim();
+      f.birth=parseDate($("fi-birth").value);f.entry=parseDate($("fi-in").value);f.count=Math.max(0,parseInt($("fi-count").value,10)||0);
+      f.lote=$("fi-lote").value.trim();f.origin=$("fi-orig").value.trim();f.notes=$("fi-notes").value.trim();f.feed=$("fi-feed").value.trim();
+      var nt=numIn("fi-temp"),ns=numIn("fi-sal"),no=numIn("fi-o2");
+      if(nt!==(f.temp==null?null:f.temp)||ns!==(f.sal==null?null:f.sal)||no!==(f.o2==null?null:f.o2))f.condAt=Date.now();
+      f.temp=nt;f.sal=ns;f.o2=no;
+    }
     function save(msg){
-      read();f.updatedAt=Date.now();f.by=me?me.name:"";fichas()[id]=clean(f);
+      read();var cur=fichaOf(id);if(cur&&cur.cover)f.cover=cur.cover;
+      f.updatedAt=Date.now();f.by=me?me.name:"";fichas()[id]=clean(f);
       var td=tankData(id);if(f.species&&td.species!==f.species){td.species=f.species;td.updatedAt=Date.now()}
       logTo(td,msg);persist(t.label+": "+msg.toLowerCase());
     }
-    $("fi-save").onclick=function(){save("Ficha atualizada");closeSheet();if(ui.tab==="fichas")viewFichas()};
+    $("fi-save").onclick=function(){save("Ficha atualizada");closeSheet();fichaOpenId=null;if(ui.tab==="fichas")viewFichas()};
     $("pw-add").onclick=function(){
-      var w=parseFloat(String($("pw-w").value).replace(",",".")),l=parseFloat(String($("pw-l").value).replace(",",".")),n=parseInt($("pw-n").value,10),d=parseDate($("pw-d").value)||Date.now();
+      var w=numIn("pw-w"),l=numIn("pw-l"),n=parseInt($("pw-n").value,10),d=parseDate($("pw-d").value)||Date.now();
       if(!(w>0)&&!(l>0)){toast("Indique o peso médio ou o tamanho");return}
       read();f.pesagens.push({id:newId("w"),t:d,weight:w>0?Math.round(w*10)/10:0,length:l>0?Math.round(l*10)/10:0,n:n>0?n:0,by:me?me.name:""});
       save("Pesagem registada"+(w>0?": "+num(w)+" g":"")+(l>0?" · "+num(l)+" cm":""));openFicha(id);if(ui.tab==="fichas")viewFichas();
     };
     document.querySelectorAll("[data-pwdel]").forEach(function(b){b.onclick=function(){if(!b.dataset.c){b.dataset.c=1;b.textContent="apagar?";b.style.color="var(--alert)";return}
       read();f.pesagens=f.pesagens.filter(function(w){return w.id!==b.dataset.pwdel});save("Pesagem apagada");openFicha(id);if(ui.tab==="fichas")viewFichas()}});
+    document.querySelectorAll("[data-pc]").forEach(function(b){b.onclick=function(){photoCat=b.dataset.pc;document.querySelectorAll("[data-pc]").forEach(function(x){x.classList.toggle("on",x===b)})}});
+    $("fi-files").onchange=function(){
+      var files=this.files,cap=$("fi-pcap").value.trim(),when=parseDate($("fi-pdate").value)||Date.now(),lbl=document.querySelector(".up-btn");
+      if(!files||!files.length)return;lbl.classList.add("busy");
+      uploadPhotos(id,files,photoCat,cap,when).then(function(){lbl.classList.remove("busy");$("fi-files").value="";$("fi-pcap").value=""});
+    };
+    renderFichaGallery(id);
   });
 }
 

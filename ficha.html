@@ -3,89 +3,268 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e7c86">
+<meta name="theme-color" content="#0b3a40">
 <title>Ficha do tanque · MyWorkGuru</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://firestore.googleapis.com">
+<link rel="modulepreload" href="firebase.js">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#eef3f4;--card:#fff;--text:#14202b;--muted:#5d6b78;--line:#dde2e8;--accent:#0e7c86;--soft:#eef6f7}
-@media (prefers-color-scheme:dark){:root{--bg:#0c1218;--card:#131c24;--text:#e6edf3;--muted:#8d9cab;--line:#25323e;--accent:#2bb3bd;--soft:#16252c}}
+:root{--bg:#eef3f4;--card:#fff;--text:#14202b;--muted:#5d6b78;--line:#dde2e8;--accent:#0e7c86;--soft:#eef6f7;--deep:#0b3a40;--warm:#e08a2c}
+@media (prefers-color-scheme:dark){:root{--bg:#0a1015;--card:#121b22;--text:#e6edf3;--muted:#8d9cab;--line:#22303b;--accent:#2bb3bd;--soft:#16252c;--deep:#06262a}}
 *{box-sizing:border-box}html,body{margin:0}
-body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;padding:16px 14px calc(24px + env(safe-area-inset-bottom));min-height:100vh}
-.wrap{max-width:520px;margin:0 auto}
-.brand{display:flex;align-items:center;gap:8px;font-family:"Space Grotesk",Inter,sans-serif;font-weight:700;color:var(--muted);font-size:14px;margin:4px 2px 12px}
-.brand i{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,.06);margin-bottom:12px}
-.tank{font-family:"Space Grotesk",Inter,sans-serif;font-size:15px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em}
-h1{font-family:"Space Grotesk",Inter,sans-serif;font-size:34px;line-height:1.05;margin:4px 0 2px;letter-spacing:-.02em}
-.sub{color:var(--muted);font-size:14px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
-.st{background:var(--soft);border-radius:14px;padding:12px}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.wrap{max-width:560px;margin:0 auto;padding:0 14px}
+.disp{font-family:"Space Grotesk",Inter,sans-serif}
+/* capa */
+.hero{position:relative;min-height:330px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;background:radial-gradient(120% 90% at 80% 0%,#1aa0a8 0%,#0e5f68 45%,var(--deep) 100%)}
+.hero .bgimg{position:absolute;inset:0;background:center/cover no-repeat;transform:scale(1.02);transition:filter .5s}
+.hero .bgimg.lo{filter:blur(6px)}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.15) 55%,rgba(4,20,24,.88) 100%)}
+.hero .waves{position:absolute;left:0;right:0;bottom:-2px;height:46px;z-index:1;color:var(--bg)}
+.hero-in{position:relative;z-index:2;max-width:560px;width:100%;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 18px 46px}
+.brand{position:absolute;top:calc(14px + env(safe-area-inset-top));left:18px;z-index:2;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;opacity:.92}
+.brand img{width:24px;height:24px;border-radius:7px;background:#fff}
+.tankpill{display:inline-flex;gap:6px;align-items:center;background:rgba(255,255,255,.16);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:4px 11px;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.hero h1{font-size:40px;line-height:1.02;margin:10px 0 4px;letter-spacing:-.025em;text-shadow:0 2px 14px rgba(0,0,0,.3)}
+.hero .sci{font-style:italic;font-size:16px;opacity:.9}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chips span{background:rgba(255,255,255,.92);color:#0b3a40;border-radius:99px;padding:5px 11px;font-size:13px;font-weight:600}
+/* cartões */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.05);margin-bottom:12px}
+h2{font-family:"Space Grotesk",Inter,sans-serif;font-size:17px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+h2 .ic{width:28px;height:28px;border-radius:9px;background:var(--soft);display:grid;place-items:center;color:var(--accent);flex:none}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:-20px;position:relative;z-index:3}
+.st{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 14px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
 .st span{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-.st b{display:block;font-family:"Space Grotesk",Inter,sans-serif;font-size:22px;margin-top:2px}
+.st b{display:block;font-family:"Space Grotesk",Inter,sans-serif;font-size:24px;margin-top:3px;letter-spacing:-.01em}
 .st small{color:var(--muted);font-size:12px}
 .st.wide{grid-column:1/-1}
-h2{font-family:"Space Grotesk",Inter,sans-serif;font-size:17px;margin:0 0 10px}
-table{width:100%;border-collapse:collapse;font-size:14px}
+.sec{margin-top:12px}
+.about{font-size:15.5px;line-height:1.6;white-space:pre-wrap;margin:0}
+/* crescimento */
+.growth-top{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.growth-top div{display:flex;flex-direction:column}
+.growth-top b{font-family:"Space Grotesk",Inter,sans-serif;font-size:22px}
+.growth-top span{font-size:12px;color:var(--muted)}
+.up{color:#1f9d55}
+.chart{width:100%;height:auto;display:block;margin:6px 0 4px;overflow:visible}
+.chart text{font-size:10px;fill:var(--muted);font-family:Inter,sans-serif}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 th{text-align:left;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:6px 0}
 td{padding:8px 0;border-top:1px solid var(--line)}td.r,th.r{text-align:right}
-.spark{width:100%;height:70px;display:block;margin:4px 0 10px}
-.notes{white-space:pre-wrap;font-size:15px;line-height:1.5}
-.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:14px}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;margin-top:10px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+/* condições */
+.cond{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cond div{background:var(--soft);border-radius:14px;padding:12px 8px;text-align:center}
+.cond svg{color:var(--accent)}
+.cond b{display:block;font-family:"Space Grotesk",Inter,sans-serif;font-size:20px;margin-top:4px}
+.cond span{font-size:11.5px;color:var(--muted)}
+.feed{display:flex;gap:10px;align-items:center;margin-top:10px;background:var(--soft);border-radius:14px;padding:11px 13px;font-size:14.5px}
+.meta{font-size:12.5px;color:var(--muted);margin-top:8px}
+/* galeria */
+.filt{display:flex;gap:6px;overflow-x:auto;margin:-2px 0 12px;scrollbar-width:none}
+.filt button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:99px;padding:6px 12px;font:600 13px Inter,sans-serif;white-space:nowrap;cursor:pointer}
+.filt button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.gal button{all:unset;cursor:zoom-in;position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--soft)}
+.gal button:first-child{grid-column:span 2;grid-row:span 2}
+.gal img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.gal button:hover img{transform:scale(1.04)}
+.gal .tag{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.55);color:#fff;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 6px}
+.more{margin-top:10px;width:100%;border:1px solid var(--line);background:var(--card);color:var(--accent);border-radius:12px;padding:10px;font:600 14px Inter,sans-serif;cursor:pointer}
+/* visualizador */
+.lb{position:fixed;inset:0;z-index:50;background:rgba(3,8,12,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(56px + env(safe-area-inset-top)) 10px calc(18px + env(safe-area-inset-bottom));touch-action:pan-y}
+.lb img{max-width:100%;max-height:76vh;border-radius:10px;object-fit:contain}
+.lb .x,.lb .nav{position:absolute;border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:50%;width:42px;height:42px;font-size:22px;cursor:pointer;display:grid;place-items:center}
+.lb .x{top:calc(10px + env(safe-area-inset-top));right:12px}
+.lb .nav{top:50%;transform:translateY(-50%)}.lb .prev{left:8px}.lb .next{right:8px}
+.lb .cap{color:#e6edf3;text-align:center;margin-top:12px;font-size:14.5px;max-width:520px}
+.lb .cap small{display:block;color:#8d9cab;font-size:12.5px;margin-top:3px}
+.lb .cnt{position:absolute;top:calc(20px + env(safe-area-inset-top));left:16px;color:#8d9cab;font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14.5px}.kv span{color:var(--muted)}
+.notes{white-space:pre-wrap;font-size:15px;line-height:1.55;margin:0}
+.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:18px;line-height:1.7}
 .foot a{color:var(--accent);font-weight:600}
 .empty{text-align:center;color:var(--muted);padding:26px 10px}
 .list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
 .list a{display:block;text-align:center;padding:12px 0;border-radius:12px;background:var(--soft);color:var(--text);text-decoration:none;font-family:"Space Grotesk",Inter,sans-serif;font-weight:700}
 .skel{height:18px;border-radius:8px;background:var(--soft);margin:10px 0;animation:p 1.2s infinite}@keyframes p{50%{opacity:.5}}
+.fade{animation:f .5s ease both}@keyframes f{from{opacity:0;transform:translateY(8px)}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand"><i><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></i>MyWorkGuru</div>
-  <div id="out"><div class="card"><div class="skel" style="width:30%"></div><div class="skel" style="height:34px;width:70%"></div><div class="skel"></div><div class="skel"></div></div></div>
-</div>
+<div id="out"><div class="hero"><div class="hero-in"><div class="skel" style="width:30%;opacity:.3"></div><div class="skel" style="height:38px;width:70%;opacity:.3"></div></div></div></div>
 <script type="module">
 import { FB } from "./firebase.js";
 const out = document.getElementById("out");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const num = (x, d = 1) => (+x || 0).toLocaleString("pt-PT", { maximumFractionDigits: d });
 const fdate = (t) => t ? new Date(t).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+const fshort = (t) => new Date(t).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }).replace(".", "");
+const has = (v) => v !== null && v !== undefined && v !== "";
 function age(b) { if (!b) return ""; const days = Math.floor((Date.now() - b) / 864e5); if (days < 0) return ""; if (days < 60) return days + (days === 1 ? " dia" : " dias"); const m = Math.floor(days / 30.44); if (m < 24) return m + " meses"; const y = Math.floor(m / 12), r = m % 12; return y + (y === 1 ? " ano" : " anos") + (r ? " e " + r + (r === 1 ? " mês" : " meses") : ""); }
+const daysSince = (t) => Math.max(0, Math.floor((Date.now() - t) / 864e5));
+const CATS = { especie: "Espécie", amostragem: "Amostragens", praticas: "Práticas" };
 const TANKS = Array.from({ length: 12 }, (_, i) => "R" + (i + 1));
 const id = new URLSearchParams(location.search).get("t");
-function picker(msg) { out.innerHTML = `<div class="card"><h2>${esc(msg)}</h2><div class="list">${TANKS.map(t => `<a href="?t=${t}">${t}</a>`).join("")}</div></div>`; }
-function spark(P) {
+const IC = {
+  info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg>',
+  grow: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  drop: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3s7 7.5 7 12a7 7 0 0 1-14 0c0-4.5 7-12 7-12z"/></svg>',
+  cam: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  tag: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg>',
+  note: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5z"/><path d="M9 12h6M9 16h4"/></svg>',
+  temp: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/></svg>',
+  salt: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>',
+  o2: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><circle cx="16.5" cy="8.5" r="3"/><circle cx="18" cy="17" r="1.6"/></svg>',
+  food: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="8" r="1.6"/><circle cx="13" cy="6" r="1.6"/><circle cx="10" cy="13" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="13" cy="18" r="1.6"/></svg>'
+};
+let F = null, PH = [], filt = "", showAll = false, heroFull = {};
+
+function picker(msg) { out.innerHTML = `<div class="hero" style="min-height:200px"><div class="hero-in"><h1 class="disp">Fichas dos tanques</h1></div><svg class="waves" viewBox="0 0 400 46" preserveAspectRatio="none"><path d="M0 26c50-18 100-18 150 0s100 18 150 0 70-14 100-6v26H0z" fill="currentColor"/></svg></div><div class="wrap"><div class="card"><h2>${esc(msg)}</h2><div class="list">${TANKS.map(t => `<a href="?t=${t}">${t}</a>`).join("")}</div></div></div>`; }
+
+function chart(P) {
   const pts = P.filter(w => w.weight > 0).sort((a, b) => a.t - b.t); if (pts.length < 2) return "";
-  const W = 300, H = 70, pad = 6, t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1, mx = Math.max(...pts.map(p => p.weight)), mn = Math.min(...pts.map(p => p.weight));
-  const X = t => pad + (W - 2 * pad) * ((t - t0) / ((t1 - t0) || 1)), Y = v => H - pad - (H - 2 * pad) * ((v - mn) / ((mx - mn) || 1));
+  const W = 320, H = 150, L = 34, R = 10, T = 12, B = 22, t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  let mx = Math.max(...pts.map(p => p.weight)), mn = Math.min(...pts.map(p => p.weight)); const pad = (mx - mn) * .12 || mx * .1 || 1; mn = Math.max(0, mn - pad); mx += pad;
+  const X = t => L + (W - L - R) * ((t - t0) / ((t1 - t0) || 1)), Y = v => H - B - (H - T - B) * ((v - mn) / ((mx - mn) || 1));
   const d = pts.map((p, i) => (i ? "L" : "M") + X(p.t).toFixed(1) + " " + Y(p.weight).toFixed(1)).join("");
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Evolução do peso"><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${pts.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.weight).toFixed(1)}" r="3" fill="var(--accent)"/>`).join("")}</svg>`;
+  const area = d + `L${X(t1).toFixed(1)} ${H - B}L${X(t0).toFixed(1)} ${H - B}Z`;
+  const ticks = [mn, (mn + mx) / 2, mx];
+  const last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução do peso médio">
+    <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".28"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${L - 6}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${num(v, v < 10 ? 1 : 0)}</text>`).join("")}
+    <text x="${L}" y="${H - 6}">${fshort(t0)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${fshort(t1)}</text>
+    <path d="${area}" fill="url(#ga)"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.weight).toFixed(1)}" r="3.2" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>`).join("")}
+    <circle cx="${X(last.t).toFixed(1)}" cy="${Y(last.weight).toFixed(1)}" r="5" fill="var(--accent)"/>
+  </svg><div class="meta" style="margin-top:0">Peso médio (g) ao longo do tempo</div>`;
 }
-function render(f) {
-  document.title = `${id} · Ficha do tanque`;
+
+function growth(P) {
+  const pts = P.filter(w => w.weight > 0).sort((a, b) => a.t - b.t);
+  if (pts.length < 2) return "";
+  const a = pts[0], b = pts[pts.length - 1], days = Math.max(1, (b.t - a.t) / 864e5), dg = b.weight - a.weight;
+  const pct = a.weight ? (dg / a.weight) * 100 : 0;
+  return `<div class="growth-top">
+    <div><b class="${dg >= 0 ? "up" : ""}">${dg >= 0 ? "+" : ""}${num(dg)} g</b><span>desde ${fdate(a.t)}</span></div>
+    ${a.weight ? `<div><b>${pct >= 0 ? "×" + num(b.weight / a.weight, 1) : num(pct, 0) + "%"}</b><span>do peso inicial</span></div>` : ""}
+    <div><b>${num(dg / days, 2)} g</b><span>por dia, em média</span></div></div>`;
+}
+
+function gallery() {
+  if (!PH.length) return "";
+  const cats = Object.keys(CATS).filter(k => PH.some(p => p.cat === k));
+  const L = PH.filter(p => !filt || p.cat === filt), shown = showAll ? L : L.slice(0, 9);
+  return `<div class="card sec fade" id="gal"><h2><span class="ic">${IC.cam}</span>Fotografias <span class="meta" style="margin:0 0 0 auto">${PH.length}</span></h2>
+    ${cats.length > 1 ? `<div class="filt"><button data-f="" class="${filt ? "" : "on"}">Todas</button>${cats.map(k => `<button data-f="${k}" class="${filt === k ? "on" : ""}">${CATS[k]}</button>`).join("")}</div>` : ""}
+    <div class="gal">${shown.map(p => `<button data-i="${PH.indexOf(p)}" aria-label="${esc(p.caption || CATS[p.cat] || "Fotografia")}"><img src="${p.thumb}" alt="" loading="lazy">${!filt ? `<span class="tag">${CATS[p.cat] || ""}</span>` : ""}</button>`).join("")}</div>
+    ${L.length > shown.length ? `<button class="more" data-more>Ver todas (${L.length})</button>` : ""}</div>`;
+}
+
+function bindGallery() {
+  const g = document.getElementById("gal"); if (!g) return;
+  g.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filt = b.dataset.f; showAll = false; g.outerHTML = gallery(); bindGallery(); });
+  g.querySelectorAll("[data-i]").forEach(b => b.onclick = () => lightbox(+b.dataset.i, PH.filter(p => !filt || p.cat === filt)));
+  const m = g.querySelector("[data-more]"); if (m) m.onclick = () => { showAll = true; g.outerHTML = gallery(); bindGallery(); };
+}
+
+const fullCache = {};
+function full(pid) {
+  if (!fullCache[pid]) fullCache[pid] = FB.getDoc(FB.doc(FB.db, "fotosFull/" + pid)).then(s => s.exists() ? s.data().data : null).catch(() => null);
+  return fullCache[pid];
+}
+function lightbox(i, list) {
+  let k = Math.max(0, list.indexOf(PH[i]));
+  const lb = document.createElement("div"); lb.className = "lb";
+  lb.innerHTML = `<span class="cnt"></span><button class="x" aria-label="Fechar">×</button>${list.length > 1 ? '<button class="nav prev" aria-label="Anterior">‹</button><button class="nav next" aria-label="Seguinte">›</button>' : ""}<img alt=""><div class="cap"></div>`;
+  document.body.appendChild(lb); document.body.style.overflow = "hidden";
+  const img = lb.querySelector("img"), cap = lb.querySelector(".cap"), cnt = lb.querySelector(".cnt");
+  function show() {
+    const p = list[k]; img.src = p.thumb; img.alt = p.caption || "";
+    cap.innerHTML = `${p.caption ? esc(p.caption) : `<b>${CATS[p.cat] || ""}</b>`}<small>${p.caption ? (CATS[p.cat] || "") + " · " : ""}${fdate(p.t)}</small>`;
+    cnt.textContent = list.length > 1 ? `${k + 1} / ${list.length}` : "";
+    const want = p.id; full(want).then(d => { if (d && list[k].id === want) img.src = d; });
+  }
+  const go = (s) => { k = (k + s + list.length) % list.length; show(); };
+  function close() { lb.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", key); }
+  function key(e) { if (e.key === "Escape") close(); else if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); }
+  lb.onclick = (e) => { if (e.target === lb || e.target.classList.contains("x")) close(); else if (e.target.classList.contains("prev")) go(-1); else if (e.target.classList.contains("next")) go(1); };
+  document.addEventListener("keydown", key);
+  let sx = null; lb.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
+  lb.addEventListener("touchend", e => { if (sx == null || list.length < 2) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); sx = null; });
+  show();
+}
+
+function coverPhoto() {
+  if (!F) return null;
+  return (F.cover && PH.find(p => p.id === F.cover)) || PH.find(p => p.cat === "especie") || null;
+}
+
+function render() {
+  const f = F;
+  document.title = `${id}${f.species ? " · " + f.species : ""} · Ficha do tanque`;
   const P = (f.pesagens || []).slice().sort((a, b) => b.t - a.t), w = P[0];
   const bio = f.count && w && w.weight ? f.count * w.weight / 1000 : 0;
+  const cov = coverPhoto();
+  const chips = [age(f.birth) && age(f.birth) + " de idade", f.count && num(f.count, 0) + " peixes", f.lote && "Lote " + esc(f.lote)].filter(Boolean);
   const stats = [
-    ["Idade", age(f.birth) || "—", f.birth ? "desde " + fdate(f.birth) : ""],
-    ["Nº de peixes", f.count ? num(f.count, 0) : "—", ""],
     ["Peso médio", w && w.weight ? num(w.weight) + " g" : "—", w ? "pesagem de " + fdate(w.t) : ""],
-    ["Tamanho médio", w && w.length ? num(w.length) + " cm" : "—", w ? "pesagem de " + fdate(w.t) : ""],
-    ...(bio ? [["Biomassa estimada", num(bio) + " kg", "nº de peixes × peso médio"]] : []),
-    ["No tanque desde", fdate(f.entry), ""],
-    ...(f.lote ? [["Lote", esc(f.lote), ""]] : []),
-    ...(f.origin ? [["Origem", esc(f.origin), ""]] : [])
+    ["Tamanho médio", w && w.length ? num(w.length) + " cm" : "—", w ? (w.n ? "amostra de " + num(w.n, 0) + " peixes" : "pesagem de " + fdate(w.t)) : ""],
+    ["Idade", age(f.birth) || "—", f.birth ? "nasceu a " + fdate(f.birth) : ""],
+    ["No tanque", f.entry ? daysSince(f.entry) + " dias" : "—", f.entry ? "desde " + fdate(f.entry) : ""],
+    ...(bio ? [["Biomassa estimada", num(bio) + " kg", num(f.count, 0) + " peixes × " + num(w.weight) + " g"]] : [])
   ];
-  out.innerHTML = `<div class="card"><div class="tank">Tanque ${esc(id)} · Interior</div><h1>${f.species ? esc(f.species) : "Espécie por indicar"}</h1>
-    <div class="grid">${stats.map(([k, v, s], i) => `<div class="st${stats.length % 2 && i === stats.length - 1 ? " wide" : ""}"><span>${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`).join("")}</div></div>
-    ${P.length ? `<div class="card"><h2>Pesagens</h2>${spark(P)}<table><thead><tr><th>Data</th><th class="r">Peso médio</th><th class="r">Tamanho</th></tr></thead><tbody>${P.slice(0, 8).map(x => `<tr><td>${fdate(x.t)}</td><td class="r">${x.weight ? num(x.weight) + " g" : "—"}</td><td class="r">${x.length ? num(x.length) + " cm" : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
-    ${f.notes ? `<div class="card"><h2>Notas</h2><div class="notes">${esc(f.notes)}</div></div>` : ""}
-    <div class="foot">Atualizado em ${fdate(f.updatedAt)} · <a href="./#${esc(id)}">Equipa: abrir na app</a></div>`;
+  const conds = [["temp", "Temperatura", f.temp, "°C"], ["salt", "Salinidade", f.sal, "‰"], ["o2", "Oxigénio", f.o2, "mg/L"]].filter(c => has(c[2]));
+  const kv = [["Espécie", esc(f.species)], ["Nome científico", f.sci ? `<i>${esc(f.sci)}</i>` : ""], ["Lote", esc(f.lote)], ["Origem", esc(f.origin)], ["Nº de peixes", f.count ? num(f.count, 0) : ""], ["Nascimento", f.birth ? fdate(f.birth) : ""], ["Entrada no tanque", f.entry ? fdate(f.entry) : ""]].filter(x => x[1]);
+  out.innerHTML = `
+  <header class="hero">
+    ${cov ? `<div class="bgimg${heroFull[cov.id] ? "" : " lo"}" id="herobg" style="background-image:url('${heroFull[cov.id] || cov.thumb}')"></div>` : ""}
+    <div class="brand"><img src="icon-192.png" alt="">MyWorkGuru</div>
+    <div class="hero-in">
+      <span class="tankpill">Tanque ${esc(id)} · Interior</span>
+      <h1 class="disp">${f.species ? esc(f.species) : "Espécie por indicar"}</h1>
+      ${f.sci ? `<div class="sci">${esc(f.sci)}</div>` : ""}
+      ${chips.length ? `<div class="chips">${chips.map(c => `<span>${c}</span>`).join("")}</div>` : ""}
+    </div>
+    <svg class="waves" viewBox="0 0 400 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0 26c50-18 100-18 150 0s100 18 150 0 70-14 100-6v26H0z" fill="currentColor"/></svg>
+  </header>
+  <main class="wrap">
+    <div class="grid fade">${stats.map(([k, v, s], i) => `<div class="st${stats.length % 2 && i === stats.length - 1 ? " wide" : ""}"><span>${k}</span><b>${v}</b>${s ? `<small>${s}</small>` : ""}</div>`).join("")}</div>
+    ${f.about ? `<div class="card sec fade"><h2><span class="ic">${IC.info}</span>Sobre a espécie</h2><p class="about">${esc(f.about)}</p></div>` : ""}
+    ${P.length ? `<div class="card sec fade"><h2><span class="ic">${IC.grow}</span>Crescimento</h2>${growth(P)}${chart(P)}
+      <details${P.length <= 4 ? " open" : ""}><summary>${P.length <= 4 ? "Pesagens" : "Ver as " + P.length + " pesagens"}</summary>
+      <table><thead><tr><th>Data</th><th class="r">Peso médio</th><th class="r">Tamanho</th></tr></thead><tbody>${P.map(x => `<tr><td>${fdate(x.t)}</td><td class="r">${x.weight ? num(x.weight) + " g" : "—"}</td><td class="r">${x.length ? num(x.length) + " cm" : "—"}</td></tr>`).join("")}</tbody></table></details></div>` : ""}
+    ${conds.length || f.feed ? `<div class="card sec fade"><h2><span class="ic">${IC.drop}</span>Condições do tanque</h2>
+      ${conds.length ? `<div class="cond" style="grid-template-columns:repeat(${conds.length},1fr)">${conds.map(([ic, k, v, u]) => `<div>${IC[ic]}<b>${num(v)} <small style="font-size:13px">${u}</small></b><span>${k}</span></div>`).join("")}</div>` : ""}
+      ${f.feed ? `<div class="feed">${IC.food}<div><span class="meta" style="margin:0;display:block">Alimentação</span>${esc(f.feed)}</div></div>` : ""}
+      ${f.condAt && conds.length ? `<div class="meta">Medido a ${fdate(f.condAt)}</div>` : ""}</div>` : ""}
+    ${gallery()}
+    ${kv.length ? `<div class="card sec fade"><h2><span class="ic">${IC.tag}</span>Identificação</h2><div class="kv">${kv.map(([k, v]) => `<span>${k}</span><div>${v}</div>`).join("")}</div></div>` : ""}
+    ${f.notes ? `<div class="card sec fade"><h2><span class="ic">${IC.note}</span>Notas</h2><p class="notes">${esc(f.notes)}</p></div>` : ""}
+    <div class="foot">Atualizado a ${fdate(f.updatedAt)}<br><a href="./#${esc(id)}">Equipa: abrir na app</a></div>
+  </main>`;
+  bindGallery();
+  if (cov && !heroFull[cov.id]) full(cov.id).then(d => { if (!d) return; heroFull[cov.id] = d; const bg = document.getElementById("herobg"); if (bg) { bg.style.backgroundImage = `url('${d}')`; bg.classList.remove("lo"); } });
 }
+
 if (!id || !TANKS.includes(id)) picker(id ? "Tanque não encontrado. Escolha um tanque:" : "Escolha um tanque:");
-else FB.onSnapshot(FB.doc(FB.db, "fichas/" + id), (s) => {
-  if (!s.exists()) { out.innerHTML = `<div class="card"><div class="tank">Tanque ${esc(id)} · Interior</div><div class="empty">Ainda não há informação registada para este tanque.</div></div><div class="foot"><a href="./#${esc(id)}">Equipa: abrir na app</a></div>`; return; }
-  render(s.data());
-}, (e) => { out.innerHTML = `<div class="card"><div class="empty">Não foi possível carregar a ficha.<br><small>${esc(e && e.code || e)}</small></div></div>`; });
+else {
+  let gotF = false;
+  FB.onSnapshot(FB.doc(FB.db, "fichas/" + id), (s) => {
+    gotF = true;
+    if (!s.exists()) { F = null; out.innerHTML = `<div class="hero" style="min-height:220px"><div class="hero-in"><span class="tankpill">Tanque ${esc(id)} · Interior</span><h1 class="disp">Em breve</h1></div><svg class="waves" viewBox="0 0 400 46" preserveAspectRatio="none"><path d="M0 26c50-18 100-18 150 0s100 18 150 0 70-14 100-6v26H0z" fill="currentColor"/></svg></div><div class="wrap"><div class="card"><div class="empty">Ainda não há informação registada para este tanque.</div></div><div class="foot"><a href="./#${esc(id)}">Equipa: abrir na app</a></div></div>`; return; }
+    F = s.data(); render();
+  }, (e) => { out.innerHTML = `<div class="wrap" style="padding-top:30px"><div class="card"><div class="empty">Não foi possível carregar a ficha.<br><small>${esc(e && e.code || e)}</small></div></div></div>`; });
+  FB.onSnapshot(FB.query(FB.collection(FB.db, "fotos"), FB.where("tank", "==", id)), (s) => {
+    PH = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.t || 0) - (a.t || 0));
+    if (F) render();
+  }, () => {});
+}
 </script>
 </body>
 </html>
