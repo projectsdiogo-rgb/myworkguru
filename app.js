@@ -1,7 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261119200109";
+var APP_VERSION="20261119200328";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -195,13 +195,17 @@ function lastClean(id){var c=peek(id).cleans||[];return c.length?c[c.length-1]:0
 function cleanedThisWeek(id){return lastClean(id)>=weekStart(Date.now())}
 function weekLabel(){var a=new Date(weekStart(Date.now())),b=new Date(weekEnd(Date.now())-1);function f(d){return d.toLocaleDateString("pt-PT",{day:"numeric",month:"short"})}return f(a)+" – "+f(b)}
 function timeLeft(){var ms=weekEnd(Date.now())-Date.now(),d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5);return d>0?(d+(d===1?" dia":" dias")+" e "+h+" h"):(h>0?h+" h":Math.max(1,Math.ceil(ms/6e4))+" min")}
-function setCleaned(id,on,silent){
-  var td=tankData(id),ws=weekStart(Date.now());td.cleans=td.cleans||[];
-  if(on){td.cleans.push(Date.now());logTo(td,"Limpeza registada")}
+function setCleaned(id,on,silent,when){
+  var td=tankData(id),now=Date.now(),ws=weekStart(now);td.cleans=td.cleans||[];
+  var t=on?Math.min(when||now,now):0,past=on&&now-t>5*60000;
+  if(on){td.cleans.push(t);td.cleans.sort(function(a,b){return a-b});logTo(td,"Limpeza registada"+(past?" · feita em "+fmt(t):""))}
   else{td.cleans=td.cleans.filter(function(c){return c<ws});logTo(td,"Limpeza desta semana anulada")}
   if(td.cleans.length>LIM.cleans)td.cleans=td.cleans.slice(-LIM.cleans);
-  td.updatedAt=Date.now();
-  if(!silent)persist(BYID[id].label+(on?" limpo ✓":" — limpeza anulada"),{label:"Anular",fn:function(){setCleaned(id,!on,true);persist(null);if(ui.tab==="lt")viewClean();else{refreshTank(id);if(selected===id)renderPanel()}}});
+  td.updatedAt=now;
+  var after=function(){if(ui.tab==="lt")viewClean();else{refreshTank(id);if(selected===id)renderPanel()}};
+  var undo=on?function(){var d=tankData(id),i=(d.cleans||[]).lastIndexOf(t);if(i>=0)d.cleans.splice(i,1);logTo(d,"Limpeza anulada");d.updatedAt=Date.now();persist(null);after()}
+             :function(){setCleaned(id,true,true);persist(null);after()};
+  if(!silent)persist(BYID[id].label+(on?(past?" — limpeza de "+fmt(t)+" registada"+(t<ws?" (semana anterior)":""):" limpo ✓"):" — limpeza anulada"),{label:"Anular",fn:undo});
 }
 
 /* ================= Tratamentos ================= */
@@ -469,7 +473,11 @@ function renderPanel(){
   var cd=cleanedThisWeek(id),lc=lastClean(id),at=activeTreat(id),lastT=(d.treatments||[]).slice(-1)[0];
   var cleanBox=!needsClean(id)?'':'<span class="lbl">Limpeza semanal</span><div class="cleanbox '+(cd?'done':'todo')+'"><div class="ct">'+(cd?'✓ Limpo esta semana':'Falta limpar esta semana')+'</div>'+
      '<div class="cm">'+(lc?'Última limpeza: '+fmt(lc):'Ainda sem limpezas registadas')+'</div>'+
-     (cd?'<button class="btn ghost" id="cl-undo">Anular limpeza desta semana</button>':'<button class="btn green" id="cl-do">Marcar como limpo</button>')+'</div>';
+     (cd?'<button class="btn ghost" id="cl-undo">Anular limpeza desta semana</button>':'<button class="btn green" id="cl-do">Marcar como limpo</button>')+
+     '<div class="cl-past"><button class="linkbtn" id="cl-past-t">'+(cd?'Registar outra limpeza noutro dia':'Foi noutro dia?')+'</button>'+
+       '<div id="cl-past-f" class="cl-past-f" hidden><input id="cl-when" type="datetime-local" value="'+localDT(Date.now())+'" max="'+localDT(Date.now()+60000)+'"><button class="btn green sm" id="cl-past-ok">Registar</button>'+
+       '<div class="cm" id="cl-past-h" style="margin:6px 0 0"></div></div></div>'+
+     '</div>';
   var treatBox='<span class="lbl">Tratamento</span>';
   if(at){var late=isLate(at);
     treatBox+='<div class="treatbox'+(late?' late':'')+'" data-lt="'+id+'"><div class="ct">'+esc(at.product)+(at.dose?' · '+esc(at.dose):'')+'</div>'+
@@ -502,6 +510,14 @@ function renderPanel(){
     persist(t.label+": "+STL[td.status]+(auto?" · marcado como limpo":""));refreshTank(id);renderPanel();
   }});
   if($("cl-do"))$("cl-do").onclick=function(){captureDraft(tankData(id));setCleaned(id,true);refreshTank(id);renderPanel()};
+  if($("cl-past-t"))$("cl-past-t").onclick=function(){var f=$("cl-past-f");f.hidden=!f.hidden;if(!f.hidden)pastHint()};
+  function pastWhen(){var v=$("cl-when").value,d=v?new Date(v):null;return d&&!isNaN(d)?d.getTime():0}
+  function pastHint(){var t=pastWhen(),h=$("cl-past-h"),ok=$("cl-past-ok");if(!h)return;
+    if(!t){h.textContent="Escolha a data e hora.";ok.disabled=true;return}
+    if(t>Date.now()+60000){h.textContent="⚠ A data não pode ser no futuro.";ok.disabled=true;return}
+    ok.disabled=false;h.textContent=t>=weekStart(Date.now())?"Conta para a limpeza desta semana.":"É de uma semana anterior: fica no histórico, mas não conta para esta semana."}
+  if($("cl-when")){$("cl-when").oninput=pastHint;$("cl-when").onchange=pastHint}
+  if($("cl-past-ok"))$("cl-past-ok").onclick=function(){var t=pastWhen();if(!t||t>Date.now()+60000)return;captureDraft(tankData(id));setCleaned(id,true,false,t);refreshTank(id);renderPanel()};
   if($("cl-undo"))$("cl-undo").onclick=function(){captureDraft(tankData(id));setCleaned(id,false);refreshTank(id);renderPanel()};
   if($("t-new"))$("t-new").onclick=function(){captureDraft(tankData(id));openTreatModal([id])};
   if($("x-from-panel"))$("x-from-panel").onclick=function(){captureDraft(tankData(id));openTransfer(id)};

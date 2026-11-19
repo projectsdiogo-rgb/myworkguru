@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261119200109">
+<link rel="modulepreload" href="app.js?v=20261119200328">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
@@ -383,6 +383,10 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 .updbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + var(--safe-t));z-index:300;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);padding:10px 16px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:0 10px 28px rgba(0,0,0,.28);font:inherit;cursor:pointer;animation:updin .35s ease-out}
 .updbar{white-space:nowrap;min-width:240px}.updbar b{font-size:14.5px}.updbar span{font-size:12.5px;opacity:.9}
 @keyframes updin{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.cl-past{margin-top:8px}.cl-past .linkbtn{padding:2px 0;font-size:13px}
+.cl-past-f{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}.cl-past-f[hidden]{display:none}
+.cl-past-f input{flex:1;min-width:0;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:0 10px}
+.ro .cl-past{display:none!important}
 /* ---- v13: fichas ---- */
 .figrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .ficard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
@@ -465,6 +469,6 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261119200109"></script>
+<script type="module" src="app.js?v=20261119200328"></script>
 </body>
 </html>
