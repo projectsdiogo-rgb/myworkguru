@@ -1,7 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261114232704";
+var APP_VERSION="20261119200109";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -218,18 +218,22 @@ function gcalLink(ids,t){
 }
 function startTreatment(ids,f){
   var now=Date.now(),mins=Math.max(0,Math.min(1440,parseInt(f.water,10)||0));
+  var start=f.start&&f.start<now?f.start:now,past=now-start>5*60000,quando=past?" · feito em "+fmt(start):"";
+  var done=mins&&start+mins*60000<=now; // tempo de paragem já passou: regista como concluído, sem temporizador
   ids.forEach(function(id){
     var td=tankData(id);td.treatments=td.treatments||[];
-    var t={product:f.product,dose:(f.dose||"").trim(),notes:(f.notes||"").trim(),start:now,waterMin:mins,waterUntil:mins?now+mins*60000:0,waterOnAt:0,endedAt:0};
-    if(mins){td.treat=t;logTo(td,"Tratamento iniciado: "+t.product+(t.dose?" ("+t.dose+")":"")+" · água desligada "+mins+" min")}
-    else{t.endedAt=now;td.treatments.push(t);logTo(td,"Tratamento registado: "+t.product+(t.dose?" ("+t.dose+")":""))}
+    var t={product:f.product,dose:(f.dose||"").trim(),notes:(f.notes||"").trim(),start:start,waterMin:mins,waterUntil:mins?start+mins*60000:0,waterOnAt:0,endedAt:0};
+    if(mins&&!done){td.treat=t;logTo(td,"Tratamento iniciado: "+t.product+(t.dose?" ("+t.dose+")":"")+" · água desligada "+mins+" min"+quando)}
+    else{if(mins){t.waterOnAt=t.waterUntil;t.endedAt=t.waterUntil}else t.endedAt=start;
+      td.treatments.push(t);td.treatments.sort(function(a,b){return a.start-b.start});
+      logTo(td,"Tratamento registado: "+t.product+(t.dose?" ("+t.dose+")":"")+(mins?" · água desligada "+mins+" min":"")+quando)}
     if(td.treatments.length>LIM.treatments)td.treatments=td.treatments.slice(-LIM.treatments);
     td.updatedAt=now;
   });
   if(f.other&&f.product&&!products().some(function(p){return p.name.toLowerCase()===f.product.toLowerCase()}))products().push({name:f.product,water:mins});
   var who=ids.length===1?BYID[ids[0]].label:ids.length+" tanques";
-  persist(who+": "+f.product+(mins?" · temporizador "+mins+" min":" registado"));
-  if(mins)askNotify();
+  persist(who+": "+f.product+(mins&&!done?" · temporizador "+mins+" min":" registado"+(past?" ("+fmt(start)+")":"")));
+  if(mins&&!done)askNotify();
 }
 function waterOn(id,silent){
   var td=tankData(id),t=td.treat;if(!t)return;var now=Date.now();
@@ -524,11 +528,17 @@ function saveDraft(silent){
 
 /* ================= Janela "Novo tratamento" ================= */
 var tform=null;
-function openTreatModal(ids){unlockAudio();tform={ids:ids,product:"",dose:"",water:0,notes:"",other:false,more:false};renderTreatModal()}
+function openTreatModal(ids){unlockAudio();tform={ids:ids,product:"",dose:"",water:0,notes:"",other:false,more:false,start:Date.now()};renderTreatModal()}
+function tPast(){return tform.start&&Date.now()-tform.start>5*60000}
+function tDone(){var w=+tform.water||0;return w>0&&tform.start+w*60000<=Date.now()}
 function closeTreatModal(){tform=null;var m=$("tmodal");if(m)m.remove()}
-function hintText(){var w=+tform.water||0;return w>0?"Arranca um temporizador de "+w+" min e avisa quando for para voltar a ligar a água.":"Sem paragem de água: o tratamento fica só registado no histórico."}
-function canStart(){return !!(tform.product&&tform.ids.length)}
-function startLabel(){var w=+tform.water||0,n=tform.ids.length;return(w>0?"Iniciar e parar água":"Registar tratamento")+(n>1?" ("+n+" tanques)":"")}
+function hintText(){var w=+tform.water||0;
+  if(tform.start>Date.now()+60000)return "⚠ A data e hora não podem ser no futuro.";
+  if(tDone())return "O tratamento foi em "+fmt(tform.start)+": como o tempo de paragem ("+w+" min) já passou, fica registado como concluído, sem temporizador.";
+  if(w>0)return (tPast()?"Início em "+fmt(tform.start)+". ":"")+"Arranca um temporizador até às "+hhmm(tform.start+w*60000)+" e avisa quando for para voltar a ligar a água.";
+  return "Sem paragem de água: o tratamento fica só registado no histórico"+(tPast()?" com a data "+fmt(tform.start):"")+".";}
+function canStart(){return !!(tform.product&&tform.ids.length)&&!(tform.start>Date.now()+60000)}
+function startLabel(){var w=+tform.water||0,n=tform.ids.length;return(w>0&&!tDone()?"Iniciar e parar água":"Registar tratamento")+(n>1?" ("+n+" tanques)":"")}
 function pickerHTML(){
   var f=tform;
   if(!f.more)return '<button class="linkbtn" id="t-more" style="margin:-4px 0 6px">+ Aplicar também a outros tanques</button>';
@@ -545,6 +555,7 @@ function renderTreatModal(){
      '<button class="pchip'+(f.other?' on':'')+'" id="p-other">+ Outro</button></div>'+
    '<div class="formgrid">'+
      (f.other?'<div class="field full"><label class="lbl" for="t-name">Nome do produto</label><input id="t-name" maxlength="40" placeholder="Ex.: Sal, Cloramina-T…" value="'+esc(f.product||"")+'"></div>':'')+
+     '<div class="field full"><label class="lbl" for="t-when">Data e hora do tratamento</label><input id="t-when" type="datetime-local" value="'+localDT(f.start||Date.now())+'" max="'+localDT(Date.now()+60000)+'"></div>'+
      '<div class="field"><label class="lbl" for="t-dose">Dose</label><input id="t-dose" maxlength="40" placeholder="Ex.: 150 ppm" value="'+esc(f.dose||"")+'"></div>'+
      '<div class="field"><label class="lbl" for="t-water">Parar água (min)</label><input id="t-water" type="number" inputmode="numeric" min="0" max="1440" value="'+w+'"></div>'+
      '<div class="field full"><label class="lbl" for="t-notes">Notas</label><input id="t-notes" maxlength="120" placeholder="Opcional" value="'+esc(f.notes||"")+'"></div>'+
@@ -552,12 +563,12 @@ function renderTreatModal(){
    '<div class="row"><button class="btn purple" id="t-start" style="flex:1"'+(canStart()?'':' disabled')+'>'+startLabel()+'</button><button class="btn ghost" id="t-x">Cancelar</button></div></div>';
   if(st)m.querySelector(".tm-sheet").scrollTop=st;
   var q=$;
-  function readForm(){if(q("t-dose"))tform.dose=q("t-dose").value;if(q("t-water"))tform.water=q("t-water").value;if(q("t-notes"))tform.notes=q("t-notes").value;if(q("t-name"))tform.product=q("t-name").value.trim()}
+  function readForm(){if(q("t-when")&&q("t-when").value){var dd=new Date(q("t-when").value);if(!isNaN(dd))tform.start=dd.getTime()}if(q("t-dose"))tform.dose=q("t-dose").value;if(q("t-water"))tform.water=q("t-water").value;if(q("t-notes"))tform.notes=q("t-notes").value;if(q("t-name"))tform.product=q("t-name").value.trim()}
   function upd(){readForm();q("t-hint").textContent=hintText();var s=q("t-start");s.textContent=startLabel();s.disabled=!canStart()}
   m.querySelector(".tm-back").onclick=closeTreatModal;q("tm-x").onclick=closeTreatModal;q("t-x").onclick=closeTreatModal;
   m.querySelectorAll(".pchip[data-p]").forEach(function(b){b.onclick=function(){readForm();var p=products()[+b.dataset.p];tform.product=p.name;tform.water=p.water;tform.other=false;renderTreatModal()}});
   q("p-other").onclick=function(){readForm();tform.other=true;tform.product="";tform.water=0;renderTreatModal();setTimeout(function(){q("t-name")&&q("t-name").focus()},0)};
-  ["t-dose","t-water","t-notes","t-name"].forEach(function(x){if(q(x))q(x).oninput=upd});
+  ["t-dose","t-water","t-notes","t-name","t-when"].forEach(function(x){if(q(x)){q(x).oninput=upd;q(x).onchange=upd}});
   if(q("t-more"))q("t-more").onclick=function(){readForm();tform.more=true;renderTreatModal()};
   m.querySelectorAll("[data-tp]").forEach(function(b){b.onclick=function(){readForm();var id=b.dataset.tp,i=tform.ids.indexOf(id);if(i>=0)tform.ids.splice(i,1);else tform.ids.push(id);renderTreatModal()}});
   m.querySelectorAll("[data-all],[data-none]").forEach(function(b){b.onclick=function(){readForm();var g=b.dataset.all||b.dataset.none;
