@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261122152414";
+var APP_VERSION="20261122153041";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1196,7 +1196,7 @@ function openOxy(k){
     (T.length?'':'<p class="empty">Não há tanques com peixe.</p>')+
     '<div class="oxy-export"><div class="fsec" style="margin-top:6px">Exportar para Excel</div>'+
       '<div class="row"><input type="month" id="oxy-m" value="'+k.slice(0,7)+'" max="'+todayKey().slice(0,7)+'" style="flex:1"><button class="btn ghost" id="oxy-x">Descarregar Excel</button></div>'+
-      '<p class="hint" id="oxy-xs" style="margin:6px 0 0">Um ficheiro por mês: uma folha para cada medição (dias × tanques) e uma lista com todos os registos.</p></div>';
+      '<p class="hint" id="oxy-xs" style="margin:6px 0 0">Um ficheiro por mês, com uma folha por tanque no mesmo formato do Excel do trabalho (Dia, N.º Ind, O2mg/l, O2Sat %, T.ºC). Basta copiar o bloco dos dias.</p></div>';
   openSheet("Registo da manhã",(isToday?"Hoje, ":"")+longDay(k),body,function(m){
     if(readOnly)m.querySelectorAll(".oxy-in").forEach(function(i){i.disabled=true});
     var obs=new MutationObserver(function(){if(!document.body.contains(m)){if(oxyUnsub){oxyUnsub();oxyUnsub=null}obs.disconnect()}});obs.observe(document.body,{childList:true});
@@ -1258,9 +1258,22 @@ function exportOxy(month){
     var order={R:0,Text:1,P:2,PP:3},cols=Object.keys(ids).filter(function(id){return BYID[id]}).map(function(id){return BYID[id]}).sort(function(a,b){return (order[a.group]-order[b.group])||natural(a,b)});
     if(!days.length||!cols.length){st.textContent="Não há registos em "+monthLabel(month,true)+".";return}
     function dt(k){return{date:new Date(k+"T12:00:00").getTime()}}
-    var sheets=OXY_F.map(function(f){
-      return{name:f.k==="o2"?"O2 (mg-L)":f.k==="sat"?"Saturação (%)":"Temperatura (°C)",freeze:true,widths:[12].concat(cols.map(function(){return 8})),
-        rows:[["Data"].concat(cols.map(function(t){return t.label}))].concat(days.map(function(d){return[dt(d.d)].concat(cols.map(function(t){var r=(d.r||{})[t.id];return r&&r[f.k]!=null?r[f.k]:""}))}))};
+    var p=month.split("-"),dim=new Date(+p[0],+p[1],0).getDate(),byDay={};days.forEach(function(d){byDay[+d.d.slice(8,10)]=d});
+    var mes="Mês : "+MES_L[+p[1]-1].charAt(0).toUpperCase()+MES_L[+p[1]-1].slice(1)+" "+p[0];
+    /* Uma folha por tanque, com o mesmo formato do Excel do trabalho: Dia | N.º Ind | O2mg/l | O2Sat % | T.ºC */
+    var sheets=cols.map(function(t){
+      var f=fichaOf(t.id)||{},sp=f.sci||f.species||peek(t.id).species||"",H=function(v){return{v:v,s:4}};
+      var rows=[
+        [H("TANQUE:"),H(""),H(t.label),H("Lote:"),H(f.lote||""),H("")],
+        [H("ESPÉCIE:"),H(""),{v:sp,s:5},H(""),H(""),{v:mes,s:5}],
+        [],
+        ["",{v:"Ração: "+(f.feed||""),s:9}],
+        [],
+        ["Dia","N.º Ind","O2mg/l","O2Sat %","T.ºC"].map(function(h){return{v:h,s:6}})
+      ];
+      for(var i=1;i<=dim;i++){var r=byDay[i]&&byDay[i].r&&byDay[i].r[t.id]||{};
+        rows.push([{v:i,s:7},{v:"",s:8},{v:r.o2!=null?r.o2:"",s:8},{v:r.sat!=null?r.sat:"",s:8},{v:r.temp!=null?r.temp:"",s:8}])}
+      return{name:t.label,plain:true,widths:[11,11,12,12,12,26],rows:rows};
     });
     var list=[["Data","Tanque","Espécie","O2 (mg/L)","Saturação (%)","Temperatura (°C)","Hora","Registado por"]];
     days.forEach(function(d){cols.forEach(function(t){var r=(d.r||{})[t.id];if(!oxyHas(r))return;
