@@ -1,7 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261122111826";
+var APP_VERSION="20261122112140";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -730,6 +730,15 @@ function consumptionHtml(){
     '</tbody></table><p class="hint" style="margin:8px 0 0">Média dos últimos '+consSpan+' meses. Conta só o que foi retirado (não conta entradas nem acertos de contagem).</p>';
   return html+'</div></div></div>';
 }
+/* Anular um movimento já registado: repõe o stock e o consumo e apaga o movimento. */
+function undoMove(mid){
+  var M=feedMoves(),i=-1;M.forEach(function(x,j){if(x.id===mid)i=j});if(i<0)return;
+  var m=M[i],f=feedById(m.feedId);
+  if(f){f.stockKg=Math.max(0,Math.round((f.stockKg-m.kg)*10)/10);if(isConsumption(m))addUse(f,m.t,m.kg)}
+  M.splice(i,1);
+  persist("Movimento anulado"+(f?" · "+f.name+" fica "+kg(f.stockKg)+" kg":""),{label:"Repor",fn:function(){var g=feedById(m.feedId);if(g){g.stockKg=Math.round((g.stockKg+m.kg)*10)/10;if(isConsumption(m))addUse(g,m.t,-m.kg)}feedMoves().push(m);sortArrays();persist(null);if(ui.tab==="racoes")viewFeed();updateFeedBadge()}});
+  viewFeed();
+}
 function viewFeed(){
   ensureColl("feedMoves");
   backfillUse();
@@ -755,7 +764,7 @@ function viewFeed(){
     if(M.length){
       html+='<div class="fchips"><button class="chip'+(feedFilter?'':' on')+'" data-ff="">Todas</button>'+Object.keys(names).map(function(id){var f=feedById(id);return '<button class="chip'+(feedFilter===id?' on':'')+'" data-ff="'+id+'">'+esc(f?f.name:names[id])+'</button>'}).join("")+'</div>'+
        '<table class="htable"><thead><tr><th>Data</th><th>Ração</th><th style="text-align:right">kg</th><th class="hide-m">Destino / nota</th></tr></thead><tbody>'+
-       MF.slice(0,80).map(function(m){var f=feedById(m.feedId);return '<tr><td>'+fmtShort(m.t)+'</td><td>'+esc(f?f.name:m.name)+(m.bags?'<div class="sub">'+kg(m.bags)+(m.bags===1?' saco':' sacos')+'</div>':'')+'<div class="sub show-m">'+esc([m.dest,m.note].filter(Boolean).join(" · "))+'</div></td><td style="text-align:right" class="'+(m.kg<0?'mv-out':'mv-in')+'">'+(m.kg>0?'+':'')+kg(m.kg)+'<div class="sub">fica '+kg(m.after)+'</div></td><td class="hide-m">'+esc([m.dest,m.note].filter(Boolean).join(" · "))+(m.by?'<div class="sub">por '+esc(m.by)+'</div>':'')+'</td></tr>'}).join("")+'</tbody></table>';
+       MF.slice(0,80).map(function(m){var f=feedById(m.feedId);return '<tr><td>'+fmtShort(m.t)+'</td><td>'+esc(f?f.name:m.name)+(m.bags?'<div class="sub">'+kg(m.bags)+(m.bags===1?' saco':' sacos')+'</div>':'')+'<div class="sub show-m">'+esc([m.dest,m.note].filter(Boolean).join(" · "))+'</div></td><td style="text-align:right" class="'+(m.kg<0?'mv-out':'mv-in')+'">'+(m.kg>0?'+':'')+kg(m.kg)+'<div class="sub">fica '+kg(m.after)+'</div><button class="linkbtn mv-del" data-mvdel="'+esc(m.id)+'">anular</button></td><td class="hide-m">'+esc([m.dest,m.note].filter(Boolean).join(" · "))+(m.by?'<div class="sub">por '+esc(m.by)+'</div>':'')+'</td></tr>'}).join("")+'</tbody></table>';
     }else html+='<p class="empty">Ainda não há movimentos.</p>';
   }
   v.innerHTML=html;
@@ -763,6 +772,9 @@ function viewFeed(){
   v.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openFeedEdit(b.dataset.edit)}});
   v.querySelectorAll("[data-take]").forEach(function(b){b.onclick=function(){openFeedMove(b.dataset.take,-1)}});
   v.querySelectorAll("[data-in]").forEach(function(b){b.onclick=function(){openFeedMove(b.dataset.in,1)}});
+  v.querySelectorAll("[data-mvdel]").forEach(function(b){b.onclick=function(){
+    if(!b.dataset.c){b.dataset.c=1;b.textContent="confirmar?";b.classList.add("on");setTimeout(function(){if(b.isConnected){delete b.dataset.c;b.textContent="anular";b.classList.remove("on")}},4000);return}
+    undoMove(b.dataset.mvdel)}});
   v.querySelectorAll("[data-cm]").forEach(function(g){g.onclick=function(){consMonth=g.dataset.cm;viewFeed()}});
   v.querySelectorAll("[data-span]").forEach(function(b){b.onclick=function(){consSpan=+b.dataset.span;consMonth=null;viewFeed()}});
   v.querySelectorAll("[data-ff]").forEach(function(b){b.onclick=function(){feedFilter=b.dataset.ff||null;viewFeed()}});
