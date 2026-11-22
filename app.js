@@ -1,7 +1,7 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261119203128";
+var APP_VERSION="20261122111826";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -672,8 +672,67 @@ function addMove(f,delta,bags,dest,note){
   var mv={t:Date.now(),feedId:f.id,name:f.name,kg:Math.round(delta*10)/10,bags:bags||0,dest:(dest||"").trim(),note:(note||"").trim(),after:Math.round(f.stockKg*10)/10,id:newId("m"),by:me?me.name:""};
   feedMoves().push(mv);if(feedMoves().length>LIM.moves)state.feedMoves=feedMoves().slice(-LIM.moves);return mv;
 }
+/* ---- Consumo mensal: cada ração guarda use = {"AAAA-MM": kg retirados} (não conta acertos nem entradas) ---- */
+var FEED_COLORS=["#0e7c86","#7c4dde","#e08a2c","#2b74d6","#d14d72","#5a9e2f","#b8860b","#6b7a8a"];
+var MES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+var MES_L=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+var consMonth=null,consSpan=6,useInitTried=false;
+function monthKey(t){var d=new Date(t);return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)}
+function monthBack(n){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-n);return monthKey(d.getTime())}
+function monthLabel(k,long){var p=k.split("-"),m=+p[1]-1;return long?MES_L[m]+" "+p[0]:MES[m]}
+function isConsumption(m){return m.kg<0&&m.note!=="Acerto de contagem"}
+function addUse(f,t,kgUsed){if(!f.use)f.use={};var k=monthKey(t);f.use[k]=Math.round(((f.use[k]||0)+kgUsed)*10)/10;if(f.use[k]<=0)delete f.use[k]}
+function feedColor(f){var i=feeds().indexOf(f);return FEED_COLORS[(i<0?0:i)%FEED_COLORS.length]}
+function dailyRate(f){var u=f.use||{},d=new Date(),dPrev=new Date(d.getFullYear(),d.getMonth(),0).getDate(),days=dPrev+d.getDate();var k=(u[monthBack(1)]||0)+(u[monthBack(0)]||0);return k>0?k/days:0}
+/* Uma única vez: calcular o consumo a partir dos movimentos já guardados. */
+function backfillUse(){
+  if(useInitTried||readOnly||!FB.db)return;var need=feeds().filter(function(f){return !f.useInit});if(!need.length)return;useInitTried=true;
+  FB.getDocs(FB.collection(FB.db,"feedMoves")).then(function(snap){
+    var acc={};snap.forEach(function(d){var m=d.data();if(!isConsumption(m))return;var k=monthKey(m.t);acc[m.feedId]=acc[m.feedId]||{};acc[m.feedId][k]=(acc[m.feedId][k]||0)-m.kg});
+    need.forEach(function(f){var a=acc[f.id]||{};f.use={};Object.keys(a).forEach(function(k){f.use[k]=Math.round(a[k]*10)/10});f.useInit=true});
+    persist(null);if(ui.tab==="racoes"&&!isBusy())viewFeed();
+  }).catch(function(){useInitTried=false});
+}
+function consumptionHtml(){
+  var F=feeds();if(!F.length)return"";
+  var months=[];for(var i=consSpan-1;i>=0;i--)months.push(monthBack(i));
+  if(!consMonth||months.indexOf(consMonth)<0)consMonth=months[months.length-1];
+  var tot=months.map(function(k){return F.reduce(function(a,f){return a+((f.use||{})[k]||0)},0)});
+  var mx=Math.max.apply(null,tot.concat([1]));
+  var W=Math.max(300,consSpan*54),H=150,B=20,T=16,bw=Math.min(34,(W/consSpan)*.58);
+  var bars=months.map(function(k,i){
+    var cx=(i+.5)*W/consSpan,y=H-B,sel=k===consMonth,seg="";
+    F.forEach(function(f){var v=(f.use||{})[k]||0;if(!v)return;var h=(H-B-T)*v/mx;y-=h;seg+='<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(h,.5).toFixed(1)+'" fill="'+feedColor(f)+'"'+(sel?'':' opacity=".55"')+'/>'});
+    return '<g class="cb" data-cm="'+k+'">'+
+      '<rect x="'+(cx-W/consSpan/2).toFixed(1)+'" y="0" width="'+(W/consSpan).toFixed(1)+'" height="'+H+'" fill="'+(sel?'var(--surface2)':'transparent')+'" rx="8"/>'+seg+
+      (tot[i]?'<text x="'+cx.toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" class="cv'+(sel?' on':'')+'">'+kg(tot[i])+'</text>':'')+
+      '<text x="'+cx.toFixed(1)+'" y="'+(H-5)+'" text-anchor="middle" class="cm'+(sel?' on':'')+'">'+monthLabel(k)+'</text></g>';
+  }).join("");
+  var idx=months.indexOf(consMonth),cur=tot[idx],prev=idx>0?tot[idx-1]:null,isNow=consMonth===monthBack(0);
+  var diff=prev?Math.round((cur-prev)/prev*100):null;
+  var rows=F.map(function(f){var v=(f.use||{})[consMonth]||0,avg=months.reduce(function(a,k){return a+((f.use||{})[k]||0)},0)/consSpan;return{f:f,v:v,avg:avg}})
+    .filter(function(r){return r.v>0||r.avg>0}).sort(function(a,b){return b.v-a.v||b.avg-a.avg});
+  var maxRow=Math.max.apply(null,rows.map(function(r){return r.v}).concat([1]));
+  var html='<div class="section-title big">Consumo mensal</div><div class="cons">'+
+    '<div class="cons-top"><div><div class="cons-kg"><b>'+kg(cur)+'</b> kg</div><div class="cons-sub">gastos em '+monthLabel(consMonth,true)+(isNow?' (até hoje)':'')+
+      (isNow&&cur>0?(function(){var d=new Date(),dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return ' · a este ritmo, ≈ '+kg(Math.round(cur/d.getDate()*dim))+' kg no fim do mês'})():'')+
+      (!isNow&&diff!=null&&isFinite(diff)?' · <span class="'+(diff>0?'up':'down')+'">'+(diff>0?'▲ +':'▼ ')+diff+'%</span> vs '+monthLabel(months[idx-1]):'')+'</div></div>'+
+    '<div class="seg"><button data-span="6" class="'+(consSpan===6?'on':'')+'">6 meses</button><button data-span="12" class="'+(consSpan===12?'on':'')+'">12 meses</button></div></div>'+
+    '<div class="cons-body"><div><div class="cons-chart"><svg viewBox="0 0 '+W+' '+H+'" style="min-width:'+(consSpan>6?560:0)+'px" role="img" aria-label="Consumo de ração por mês">'+bars+'</svg></div>'+
+    '<p class="hint" style="margin:2px 0 10px">Toque num mês para ver o detalhe.</p></div><div>';
+  if(!rows.length)html+='<p class="empty" style="margin:0">Ainda não há consumo registado neste período. O consumo conta cada vez que alguém faz <b>− Retirar</b>.</p>';
+  else html+='<table class="ctable"><thead><tr><th>Ração</th><th style="text-align:right">'+monthLabel(consMonth)+'</th><th style="text-align:right" class="hide-s">Sacos</th><th style="text-align:right">Média/mês</th></tr></thead><tbody>'+
+    rows.map(function(r){var f=r.f,pct=cur?Math.round(r.v/cur*100):0;
+      return '<tr><td><div class="cname"><i style="background:'+feedColor(f)+'"></i>'+esc(f.name)+'</div><div class="cbar"><i style="width:'+(100*r.v/maxRow)+'%;background:'+feedColor(f)+'"></i></div></td>'+
+        '<td style="text-align:right"><b>'+kg(r.v)+' kg</b>'+(r.v?'<div class="sub">'+pct+'%</div>':'')+'</td>'+
+        '<td style="text-align:right" class="hide-s">'+(f.bagKg>0&&r.v?'≈ '+kg(r.v/f.bagKg):'—')+'</td>'+
+        '<td style="text-align:right">'+kg(r.avg)+' kg</td></tr>'}).join("")+
+    '</tbody></table><p class="hint" style="margin:8px 0 0">Média dos últimos '+consSpan+' meses. Conta só o que foi retirado (não conta entradas nem acertos de contagem).</p>';
+  return html+'</div></div></div>';
+}
 function viewFeed(){
   ensureColl("feedMoves");
+  backfillUse();
   var v=$("view"),F=feeds(),total=F.reduce(function(a,f){return a+(+f.stockKg||0)},0),low=F.filter(isLow);
   var html='<div class="pagehead"><div><h1>Stock de rações</h1><p>Retire sacos para abater ao stock; registe entradas quando chegar ração.</p></div><button class="btn" id="f-new">+ Nova ração</button></div>';
   if(!F.length){
@@ -685,9 +744,11 @@ function viewFeed(){
       return '<div class="fcard'+(lowc?' low':'')+'"><div class="fc-h"><button class="fc-name" data-edit="'+f.id+'">'+esc(f.name)+'</button>'+(lowc?'<span class="fc-low">Stock baixo</span>':'')+'</div>'+
         '<div class="fc-kg"><b>'+kg(f.stockKg)+'</b> kg</div>'+
         '<div class="fc-bags">'+(f.bagKg>0?'≈ '+kg(b)+(Math.abs(b-1)<.05?' saco':' sacos')+' de '+kg(f.bagKg)+' kg':'')+(f.minKg>0?' · mín. '+kg(f.minKg)+' kg':'')+'</div>'+
+        (function(){var r=dailyRate(f);if(!(r>0))return'';var d=Math.floor(f.stockKg/r);return '<div class="fc-days'+(d<14?' low':'')+'">'+(d<1?'Acaba hoje ao ritmo atual':'Dá para ≈ '+(d>=60?Math.round(d/30.44)+' meses':d+(d===1?' dia':' dias'))+' ao ritmo atual')+'</div>'})()+
         (pct!=null?'<div class="fc-bar'+(lowc?' low':'')+'"><i style="width:'+pct+'%"></i></div>':'')+
         '<div class="row fc-act"><button class="btn purple" data-take="'+f.id+'" style="flex:1">− Retirar</button><button class="btn ghost" data-in="'+f.id+'">+ Entrada</button></div></div>';
     }).join("")+'</div>';
+    html+=consumptionHtml();
     var M=feedMoves().slice().reverse(),names={};M.forEach(function(m){names[m.feedId]=m.name});
     var MF=M.filter(function(m){return !feedFilter||m.feedId===feedFilter});
     html+='<div class="section-title big">Movimentos<span>'+(lazyLoaded("feedMoves")?M.length:'…')+'</span></div><p class="hint" style="margin-top:-6px">Últimos '+JANELA_DIAS+' dias. O histórico completo está na folha Google.</p>';
@@ -702,6 +763,8 @@ function viewFeed(){
   v.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openFeedEdit(b.dataset.edit)}});
   v.querySelectorAll("[data-take]").forEach(function(b){b.onclick=function(){openFeedMove(b.dataset.take,-1)}});
   v.querySelectorAll("[data-in]").forEach(function(b){b.onclick=function(){openFeedMove(b.dataset.in,1)}});
+  v.querySelectorAll("[data-cm]").forEach(function(g){g.onclick=function(){consMonth=g.dataset.cm;viewFeed()}});
+  v.querySelectorAll("[data-span]").forEach(function(b){b.onclick=function(){consSpan=+b.dataset.span;consMonth=null;viewFeed()}});
   v.querySelectorAll("[data-ff]").forEach(function(b){b.onclick=function(){feedFilter=b.dataset.ff||null;viewFeed()}});
   updateFeedBadge();
 }
@@ -740,8 +803,9 @@ function openFeedMove(id,dir){
       var before=f.stockKg,bags=$("m-bags")?numVal("m-bags"):0;
       f.stockKg=Math.max(0,Math.round((f.stockKg+(take?-q:q))*10)/10);
       var mv=addMove(f,take?-q:q,bags,take&&$("m-dest")?$("m-dest").value:"",!take&&$("m-note")?$("m-note").value:"");
+      if(take)addUse(f,mv.t,q);
       closeSheet();
-      persist((take?"Retirado ":"Entrada ")+kg(q)+" kg · "+f.name+" fica "+kg(f.stockKg)+" kg",{label:"Anular",fn:function(){f.stockKg=before;var M=feedMoves(),i=M.indexOf(mv);if(i>=0)M.splice(i,1);persist(null);if(ui.tab==="racoes")viewFeed();updateFeedBadge()}});
+      persist((take?"Retirado ":"Entrada ")+kg(q)+" kg · "+f.name+" fica "+kg(f.stockKg)+" kg",{label:"Anular",fn:function(){var g=feedById(f.id);if(g){g.stockKg=Math.round((g.stockKg-(take?-q:q))*10)/10;if(g.stockKg<0)g.stockKg=0;if(take)addUse(g,mv.t,-q)}var M=feedMoves(),i=-1;M.forEach(function(x,j){if(x.id===mv.id)i=j});if(i>=0)M.splice(i,1);persist(null);if(ui.tab==="racoes")viewFeed();updateFeedBadge()}});
       viewFeed();
     };
   });
@@ -762,7 +826,7 @@ function openFeedEdit(id){
       if(f){f.name=name;f.bagKg=bag;f.minKg=min;var fix=Math.max(0,numVal("e-fix"));
         if(Math.abs(fix-f.stockKg)>=0.05){var d=fix-f.stockKg;f.stockKg=Math.round(fix*10)/10;addMove(f,d,0,"","Acerto de contagem")}
         persist(name+" guardada");}
-      else{var nf={id:"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,bagKg:bag,stockKg:Math.round(Math.max(0,numVal("e-stock"))*10)/10,minKg:min,createdAt:Date.now()};
+      else{var nf={id:"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,bagKg:bag,stockKg:Math.round(Math.max(0,numVal("e-stock"))*10)/10,minKg:min,createdAt:Date.now(),use:{},useInit:true};
         feeds().push(nf);if(nf.stockKg>0)addMove(nf,nf.stockKg,0,"","Stock inicial");persist(name+" adicionada")}
       closeSheet();viewFeed();
     };
