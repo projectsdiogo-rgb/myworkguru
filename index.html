@@ -8,9 +8,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261122112140">
+<link rel="modulepreload" href="app.js?v=20261122152414">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
+<link rel="modulepreload" href="xlsx.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
 <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
@@ -515,11 +516,32 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 @media (max-width:520px){.hide-s{display:none}}
 .mv-del{font-size:11.5px;color:var(--muted);padding:2px 0;margin-top:2px}.mv-del.on{color:var(--alert);font-weight:700}
 .ro .mv-del{display:none!important}
+
+/* v16 registo da manhã */
+.oxybtn{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.oxybtn b{background:rgba(255,255,255,.22);border-radius:99px;padding:1px 8px;font-size:12.5px}
+.oxybtn.done{background:var(--ok)}
+.oxy-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.oxy-date{display:flex;align-items:center;gap:6px}.oxy-date input{width:auto}
+.oxy-prog{font-size:13.5px;color:var(--muted)}.oxy-prog b{font-family:var(--display);font-size:20px;color:var(--text)}
+.oxy-head,.oxy-row{display:grid;grid-template-columns:minmax(64px,1.3fr) repeat(3,minmax(0,1fr)) 18px;gap:6px;align-items:center}
+.oxy-head{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:0 2px 6px;border-bottom:1px solid var(--line);position:sticky;top:-1px;background:var(--surface);z-index:1}
+.oxy-head small{text-transform:none;font-weight:500;letter-spacing:0}
+.oxy-row{padding:5px 2px;border-bottom:1px solid var(--line)}
+.oxy-t b{display:block;font-size:14.5px}.oxy-t small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oxy-in{width:100%;min-width:0;padding:9px 6px;text-align:center;font-size:16px;border-radius:9px}
+.oxy-in::placeholder{color:color-mix(in srgb,var(--muted) 55%,transparent)}
+.oxy-row.saved .oxy-in{background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.oxy-row.low .oxy-in{background:color-mix(in srgb,var(--alert) 10%,var(--surface));border-color:var(--alert)}
+.oxy-ok{font-weight:800;color:var(--ok);text-align:center}.oxy-row.low .oxy-ok{color:var(--alert)}
+.oxy-export{margin-top:16px}
+.ro .oxy-export{display:block}
+@media (max-width:900px){.pagehead .oxybtn{margin-top:8px}}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261122112140"></script>
+<script type="module" src="app.js?v=20261122152414"></script>
 </body>
 </html>

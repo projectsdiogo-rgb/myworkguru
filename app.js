@@ -1,7 +1,8 @@
 
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
-var APP_VERSION="20261122112140";
+import {makeXlsx} from "./xlsx.js";
+var APP_VERSION="20261122152414";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -167,7 +168,7 @@ function snapErr(err){
   if(err&&err.code==="permission-denied")showAuthMsg("Sem permissão para ver os dados. Peça ao administrador para aprovar o seu acesso.");
   else toast("Erro de ligação: "+(err&&err.code||err));
 }
-function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];LAZY={transfers:null,feedMoves:null};photos={};photosOn=false;synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
+function stopData(){unsubs.forEach(function(u){try{u()}catch(e){}});unsubs=[];LAZY={transfers:null,feedMoves:null};photos={};photosOn=false;oxyTodayOn=false;oxyToday=null;synced={};dataReady=false;state={tanks:{},products:null,feeds:[],feedMoves:[],transfers:[],fichas:{}}}
 
 /* ================= Utilitários ================= */
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -408,7 +409,7 @@ function cleanCount(){return TANKS.filter(function(t){return needsClean(t.id)&&c
 function cleanCls(id){return !needsClean(id)?" cl-na":(cleanedThisWeek(id)?" cl-done":" cl-todo")}
 function viewMap(){
   var v=$("view");
-  v.innerHTML='<div class="pagehead"><div><h1>Tanques</h1><p>Toque num tanque para ver o estado, marcar a limpeza ou iniciar um tratamento.</p></div></div>'+
+  v.innerHTML='<div class="pagehead"><div><h1>Tanques</h1><p>Toque num tanque para ver o estado, marcar a limpeza ou iniciar um tratamento.</p></div>'+oxyBtnHtml()+'</div>'+
    seedBanner()+'<div class="stats" id="stats"></div>'+
    '<div class="toolbar"><label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Procurar tanque ou espécie" autocomplete="off"></label>'+
    '<div class="seg" id="viewSeg"><button data-v="map">Mapa</button><button data-v="list">Lista</button></div>'+
@@ -417,7 +418,7 @@ function viewMap(){
   var q=$("q");q.value=query;q.addEventListener("input",function(){query=q.value.trim();refreshMapFilters()});
   q.addEventListener("keydown",function(e){if(e.key==="Enter"){var r=TANKS.filter(matches);if(r.length){select(r[0].id);q.blur()}}});
   document.querySelectorAll("#viewSeg button").forEach(function(b){b.onclick=function(){ui.view=b.dataset.v;saveUI();renderMapMain()}});
-  renderStats();renderMapMain();renderPanel();bindSeed();
+  renderStats();renderMapMain();renderPanel();bindSeed();bindOxyBtn();ensureOxyToday();
 }
 function onTankTap(id){select(id)}
 function renderStats(){
@@ -1151,6 +1152,127 @@ function openFicha(id){
   });
 }
 
+/* ================= Registo da manhã: oxigénio, saturação e temperatura =================
+   Um documento por dia em "oxigenio/AAAA-MM-DD": {d, r:{R1:{o2,sat,temp,sp,t,by}, ...}, _mod}.
+   Gravado campo a campo com merge, para dois colegas poderem registar ao mesmo tempo. */
+var OXY_F=[{k:"o2",label:"O₂",unit:"mg/L",step:"0.01"},{k:"sat",label:"Sat.",unit:"%",step:"0.1"},{k:"temp",label:"Temp.",unit:"°C",step:"0.1"}];
+var oxyToday=null,oxyTodayKey="",oxyTodayOn=false,oxyDay=null,oxyPrev=null,oxyDate="",oxyUnsub=null;
+function todayKey(){return dateVal(Date.now())}
+function dayShift(k,n){var d=new Date(k+"T12:00:00");d.setDate(d.getDate()+n);return dateVal(d.getTime())}
+function oxyTanks(){var order={R:0,Text:1,P:2,PP:3};return TANKS.filter(function(t){return peek(t.id).status!=="empty"}).sort(function(a,b){return (order[a.group]-order[b.group])||natural(a,b)})}
+function oxyHas(r){return r&&(r.o2!=null||r.sat!=null||r.temp!=null)}
+function oxyCount(day){var R=(day&&day.r)||{};return oxyTanks().filter(function(t){return oxyHas(R[t.id])}).length}
+function oxyLow(r){return r&&((r.o2!=null&&r.o2<5)||(r.sat!=null&&r.sat<70))}
+function ensureOxyToday(){
+  var k=todayKey();if(oxyTodayOn&&oxyTodayKey===k||!FB.db)return;
+  oxyTodayOn=true;oxyTodayKey=k;
+  unsubs.push(FB.onSnapshot(FB.doc(FB.db,"oxigenio/"+k),function(s){
+    if(oxyTodayKey!==k)return;oxyToday=s.exists()?s.data():null;updateOxyBtn();
+  },function(){}));
+}
+function oxyBtnHtml(){var n=oxyCount(oxyToday),tot=oxyTanks().length,done=tot&&n>=tot;
+  return '<button class="btn oxybtn'+(done?' done':'')+'" id="oxy-open">'+OXY_ICON+'<span>Registo da manhã</span><b>'+n+'/'+tot+'</b></button>'}
+function updateOxyBtn(){var b=$("oxy-open");if(b){b.outerHTML=oxyBtnHtml();bindOxyBtn()}}
+function bindOxyBtn(){var b=$("oxy-open");if(b)b.onclick=function(){openOxy(todayKey())}}
+var OXY_ICON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="8" cy="15" r="4"/><circle cx="16.5" cy="8.5" r="3"/><circle cx="18" cy="17" r="1.6"/></svg>';
+
+function fmtNum(v){return v==null?"":String(v).replace(".",",")}
+function readNum(el){var s=String(el.value).replace(",",".").trim();if(s==="")return null;var n=parseFloat(s);return isFinite(n)?Math.round(n*100)/100:null}
+function longDay(k){return new Date(k+"T12:00:00").toLocaleDateString("pt-PT",{weekday:"long",day:"numeric",month:"long"})}
+
+function openOxy(k){
+  oxyDate=k;oxyDay=null;oxyPrev=null;
+  if(oxyUnsub){oxyUnsub();oxyUnsub=null}
+  var isToday=k===todayKey(),T=oxyTanks();
+  var body='<div class="oxy-top"><div class="oxy-date"><button class="iconbtn sm" id="oxy-prev" aria-label="Dia anterior">‹</button>'+
+      '<input type="date" id="oxy-d" value="'+k+'" max="'+todayKey()+'"><button class="iconbtn sm" id="oxy-next" aria-label="Dia seguinte"'+(isToday?' disabled':'')+'>›</button></div>'+
+      '<div class="oxy-prog"><b id="oxy-n">0</b>/'+T.length+' tanques</div></div>'+
+    '<p class="hint" style="margin:6px 0 10px">Os valores ficam guardados ao passar para o campo seguinte. A cinzento aparece o valor do dia anterior. Só aparecem tanques com peixe.</p>'+
+    '<div class="oxy-head"><span>Tanque</span>'+OXY_F.map(function(f){return '<span>'+f.label+' <small>'+f.unit+'</small></span>'}).join("")+'</div>'+
+    '<div class="oxy-list">'+T.map(function(t){var sp=peek(t.id).species||"";
+      return '<div class="oxy-row" data-ot="'+t.id+'"><div class="oxy-t"><b>'+esc(t.label)+'</b>'+(sp?'<small>'+esc(sp)+'</small>':'')+'</div>'+
+        OXY_F.map(function(f){return '<input class="oxy-in" data-f="'+f.k+'" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="'+f.label+' '+esc(t.label)+'">'}).join("")+
+        '<span class="oxy-ok" aria-hidden="true"></span></div>'}).join("")+'</div>'+
+    (T.length?'':'<p class="empty">Não há tanques com peixe.</p>')+
+    '<div class="oxy-export"><div class="fsec" style="margin-top:6px">Exportar para Excel</div>'+
+      '<div class="row"><input type="month" id="oxy-m" value="'+k.slice(0,7)+'" max="'+todayKey().slice(0,7)+'" style="flex:1"><button class="btn ghost" id="oxy-x">Descarregar Excel</button></div>'+
+      '<p class="hint" id="oxy-xs" style="margin:6px 0 0">Um ficheiro por mês: uma folha para cada medição (dias × tanques) e uma lista com todos os registos.</p></div>';
+  openSheet("Registo da manhã",(isToday?"Hoje, ":"")+longDay(k),body,function(m){
+    if(readOnly)m.querySelectorAll(".oxy-in").forEach(function(i){i.disabled=true});
+    var obs=new MutationObserver(function(){if(!document.body.contains(m)){if(oxyUnsub){oxyUnsub();oxyUnsub=null}obs.disconnect()}});obs.observe(document.body,{childList:true});
+    oxyUnsub=FB.onSnapshot(FB.doc(FB.db,"oxigenio/"+k),function(s){oxyDay=s.exists()?s.data():null;fillOxy(m)},function(e){toast("Erro ao ler registos: "+(e&&e.code||e))});
+    FB.getDoc(FB.doc(FB.db,"oxigenio/"+dayShift(k,-1))).then(function(s){oxyPrev=s.exists()?s.data():null;fillOxy(m)}).catch(function(){});
+    $("oxy-d").onchange=function(){var v=this.value;if(v&&v<=todayKey())openOxy(v)};
+    $("oxy-prev").onclick=function(){openOxy(dayShift(k,-1))};
+    $("oxy-next").onclick=function(){var n=dayShift(k,1);if(n<=todayKey())openOxy(n)};
+    var inputs=Array.prototype.slice.call(m.querySelectorAll(".oxy-in"));
+    inputs.forEach(function(el,i){
+      el.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();var n=inputs[i+1];if(n){n.focus();n.select()}else el.blur()}});
+      el.addEventListener("focus",function(){el.dataset.v=el.value});
+      el.addEventListener("blur",function(){if(el.value!==el.dataset.v)saveOxyRow(el.closest(".oxy-row"))});
+    });
+    $("oxy-x").onclick=function(){exportOxy($("oxy-m").value)};
+  });
+}
+function fillOxy(m){
+  if(!m||!document.body.contains(m))return;
+  var R=(oxyDay&&oxyDay.r)||{},P=(oxyPrev&&oxyPrev.r)||{};
+  m.querySelectorAll(".oxy-row").forEach(function(row){
+    var id=row.dataset.ot,r=R[id],p=P[id],pt=+row.dataset.pt||0;
+    if(pt){if((pt<0&&!oxyHas(r))||(pt>0&&r&&r.t>=pt))row.dataset.pt="";else return}
+    row.querySelectorAll(".oxy-in").forEach(function(el){var f=el.dataset.f;
+      if(document.activeElement!==el)el.value=r&&r[f]!=null?fmtNum(r[f]):"";
+      el.placeholder=p&&p[f]!=null?fmtNum(p[f]):"";
+    });
+    row.classList.toggle("saved",oxyHas(r));row.classList.toggle("low",!!oxyLow(r));
+    var ok=row.querySelector(".oxy-ok");ok.textContent=oxyLow(r)?"!":(oxyHas(r)?"✓":"");
+    ok.title=oxyLow(r)?"Oxigénio baixo":(r&&r.by?"Registado por "+r.by:"");
+  });
+  var n=$("oxy-n");if(n)n.textContent=oxyCount(oxyDay);
+}
+function saveOxyRow(row){
+  if(readOnly){toast("Só leitura — não tem permissão para alterar");return}
+  var id=row.dataset.ot,rec={},any=false;
+  row.querySelectorAll(".oxy-in").forEach(function(el){var v=readNum(el);rec[el.dataset.f]=v;if(v!=null)any=true});
+  var k=oxyDate,val=null;
+  if(any){val={o2:rec.o2,sat:rec.sat,temp:rec.temp,sp:peek(id).species||"",t:Date.now(),by:me?me.name:""}}
+  var upd={d:k,_mod:Date.now(),r:{}};upd.r[id]=val;
+  row.dataset.pt=val?val.t:-1;
+  setSave("saving","A guardar…");
+  FB.setDoc(FB.doc(FB.db,"oxigenio/"+k),upd,{merge:true}).then(function(){
+    idleSave();
+    if(val&&oxyLow(val))toast(BYID[id].label+": oxigénio baixo ("+(val.o2!=null?fmtNum(val.o2)+" mg/L":fmtNum(val.sat)+" %")+")");
+    if(val&&k===todayKey()&&fichaOf(id)){var f=fichaOf(id),ch=false;
+      if(val.temp!=null&&f.temp!==val.temp){f.temp=val.temp;ch=true}
+      if(val.o2!=null&&f.o2!==val.o2){f.o2=val.o2;ch=true}
+      if(ch){f.condAt=Date.now();persist(null)}}
+  }).catch(function(e){row.dataset.pt="";idleSave();toast("Não foi possível guardar "+BYID[id].label+": "+(e&&e.code||e))});
+}
+function exportOxy(month){
+  if(!month)return;var st=$("oxy-xs"),from=month+"-01",to=month+"-31";
+  st.textContent="A preparar o ficheiro…";
+  FB.getDocs(FB.query(FB.collection(FB.db,"oxigenio"),FB.where("d",">=",from))).then(function(snap){
+    var days=[];snap.forEach(function(d){var x=d.data();if(x.d&&x.d<=to)days.push(x)});
+    days.sort(function(a,b){return a.d<b.d?-1:1});
+    var ids={};days.forEach(function(d){Object.keys(d.r||{}).forEach(function(id){if(oxyHas(d.r[id]))ids[id]=1})});
+    var order={R:0,Text:1,P:2,PP:3},cols=Object.keys(ids).filter(function(id){return BYID[id]}).map(function(id){return BYID[id]}).sort(function(a,b){return (order[a.group]-order[b.group])||natural(a,b)});
+    if(!days.length||!cols.length){st.textContent="Não há registos em "+monthLabel(month,true)+".";return}
+    function dt(k){return{date:new Date(k+"T12:00:00").getTime()}}
+    var sheets=OXY_F.map(function(f){
+      return{name:f.k==="o2"?"O2 (mg-L)":f.k==="sat"?"Saturação (%)":"Temperatura (°C)",freeze:true,widths:[12].concat(cols.map(function(){return 8})),
+        rows:[["Data"].concat(cols.map(function(t){return t.label}))].concat(days.map(function(d){return[dt(d.d)].concat(cols.map(function(t){var r=(d.r||{})[t.id];return r&&r[f.k]!=null?r[f.k]:""}))}))};
+    });
+    var list=[["Data","Tanque","Espécie","O2 (mg/L)","Saturação (%)","Temperatura (°C)","Hora","Registado por"]];
+    days.forEach(function(d){cols.forEach(function(t){var r=(d.r||{})[t.id];if(!oxyHas(r))return;
+      list.push([dt(d.d),t.label,r.sp||"",r.o2!=null?r.o2:"",r.sat!=null?r.sat:"",r.temp!=null?r.temp:"",r.t?new Date(r.t).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}):"",r.by||""])})});
+    sheets.push({name:"Registos",widths:[12,9,18,10,13,16,8,16],rows:list});
+    var blob=makeXlsx(sheets),a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download="Oxigenio_"+month+".xlsx";document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},4000);
+    st.textContent="Ficheiro descarregado: "+days.length+(days.length===1?" dia":" dias")+", "+(list.length-1)+" registos.";
+  }).catch(function(e){st.textContent="Erro: "+(e&&e.code||e)});
+}
+
 /* ================= Login, registo e aprovação ================= */
 var LOGO='<div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>';
 var EYE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -1311,7 +1433,7 @@ if(window.matchMedia)try{matchMedia("(prefers-color-scheme: dark)").addEventList
 FB.auth.languageCode="pt";
 FB.onAuthStateChanged(FB.auth,onAuth);
 var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){if($("mapwrap"))fit()},150)});
-window.addEventListener("hashchange",function(){var h=(location.hash||"").replace("#","");if(BYID[h]&&h!==selected)select(h);else if(tabFromHash(h)&&ui.tab!==tabFromHash(h))setTab(tabFromHash(h))});
+window.addEventListener("hashchange",function(){var h=(location.hash||"").replace("#","");if(h==="oxigenio"){if(ui.tab!=="mapa")setTab("mapa");openOxy(todayKey());return}if(BYID[h]&&h!==selected)select(h);else if(tabFromHash(h)&&ui.tab!==tabFromHash(h))setTab(tabFromHash(h))});
 window.addEventListener("keydown",function(e){if(e.key==="Escape"&&selected&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName))closePanel()});
 window.addEventListener("beforeunload",function(){if(dirty)saveDraft(true);if(syncTimer){clearTimeout(syncTimer);syncNow()}});
 setInterval(tick,1000);

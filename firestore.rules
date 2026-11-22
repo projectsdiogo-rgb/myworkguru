@@ -47,8 +47,8 @@ service cloud.firestore {
 
     // Dados da app: leitores veem, editores e administrador alteram.
     match /{coll}/{id} {
-      allow read: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers'] && canRead();
-      allow write: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers'] && canWrite();
+      allow read: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers', 'oxigenio'] && canRead();
+      allow write: if coll in ['tanks', 'meta', 'feeds', 'feedMoves', 'transfers', 'oxigenio'] && canWrite();
     }
   }
 }
