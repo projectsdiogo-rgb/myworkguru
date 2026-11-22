@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261122162352">
+<link rel="modulepreload" href="app.js?v=20261122162723">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -31,7 +31,7 @@
   --r:14px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
   --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--display:'Space Grotesk',var(--font);
 }
-[data-theme="dark"]{
+[data-theme="dark"]{color-scheme:dark;
   --bg:#0c1218;--surface:#131c24;--surface2:#1a2530;--line:#25323e;--text:#e6edf3;--muted:#8d9cab;
   --accent:#2bb3bd;--accent-ink:#06191b;--wall:#3c4b59;--board:#0f171e;--grid:rgba(255,255,255,.035);
   --treat:#9b74f0;--cdone:#2fbf6d;--ctodo:#e6b416;--ok:#2fbf6d;--empty:#6d7a87;--clean:#4c92f0;--maint:#f0a52a;--alert:#f05454;
@@ -558,11 +558,24 @@ body.drawer-on{overflow:hidden}
 .al-x{width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:18px;cursor:pointer}
 .al-add{align-self:flex-start;font-size:12.5px;padding:2px 0}
 .ro .al-add,.ro .al-x,.ro #d-foods{display:none!important}
+
+/* v18 campos do painel lateral legíveis (iPhone / modo escuro) */
+:root{color-scheme:light}
+#drawer input,#drawer select,.dr-foot input{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;outline:none;-webkit-text-fill-color:var(--text)}
+#drawer input:focus,#drawer select:focus{border-color:var(--accent)}
+#drawer input[type=date],#drawer input[type=month]{-webkit-appearance:none;appearance:none;height:40px;padding:0 12px;font-size:15.5px;font-weight:600;min-width:150px;text-align:center;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+#drawer input[type=date]::-webkit-date-and-time-value,#drawer input[type=month]::-webkit-date-and-time-value{text-align:center;margin:0}
+#drawer input[type=date]::-webkit-calendar-picker-indicator,#drawer input[type=month]::-webkit-calendar-picker-indicator{opacity:.6;cursor:pointer}
+[data-theme="dark"] #drawer input::-webkit-calendar-picker-indicator{filter:invert(1)}
+#drawer select{-webkit-appearance:none;appearance:none;padding-right:26px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+#drawer .oxy-in::placeholder{-webkit-text-fill-color:color-mix(in srgb,var(--muted) 60%,transparent)}
+#drawer .saved .oxy-in{background:color-mix(in srgb,var(--ok) 10%,var(--bg))}
+.dr-foot input[type=month]{flex:1}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261122162352"></script>
+<script type="module" src="app.js?v=20261122162723"></script>
 </body>
 </html>
