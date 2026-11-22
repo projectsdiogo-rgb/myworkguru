@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261122160538";
+var APP_VERSION="20261122162352";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -410,7 +410,7 @@ function cleanCount(){return TANKS.filter(function(t){return needsClean(t.id)&&c
 function cleanCls(id){return !needsClean(id)?" cl-na":(cleanedThisWeek(id)?" cl-done":" cl-todo")}
 function viewMap(){
   var v=$("view");
-  v.innerHTML='<div class="pagehead"><div><h1>Tanques</h1><p>Toque num tanque para ver o estado, marcar a limpeza ou iniciar um tratamento.</p></div>'+dBtnHtml()+'</div>'+
+  v.innerHTML='<div class="pagehead"><div><h1>Tanques</h1><p>Toque num tanque para ver o estado, marcar a limpeza ou iniciar um tratamento.</p></div></div>'+dBtnHtml()+
    seedBanner()+'<div class="stats" id="stats"></div>'+
    '<div class="toolbar"><label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Procurar tanque ou espécie" autocomplete="off"></label>'+
    '<div class="seg" id="viewSeg"><button data-v="map">Mapa</button><button data-v="list">Lista</button></div>'+
@@ -1182,8 +1182,9 @@ function ensureDToday(){
   unsubs.push(FB.onSnapshot(FB.doc(FB.db,"diario/"+k),function(s){if(dTodayKey!==k)return;dToday=s.exists()?s.data():null;updateDBtn()},function(){}));
 }
 var DIARY_ICON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 2v4M16 2v4M4 10h16M8 14h3M8 17.5h6"/></svg>';
-function dBtnHtml(){var tot=dTanks().length,o=dCount(dToday,"oxy"),a=dCount(dToday,"al"),done=tot&&o>=tot&&a>=tot;
-  return '<button class="btn dbtn'+(done?' done':'')+'" id="d-open">'+DIARY_ICON+'<span>Registos diários</span><b title="Oxigénio">O₂ '+o+'/'+tot+'</b><b title="Alimentação">Alim. '+a+'/'+tot+'</b></button>'}
+function dBtnHtml(){var tot=dTanks().length,o=dCount(dToday,"oxy"),a=dCount(dToday,"al"),done=tot&&o>=tot&&a>=tot,left=Math.max(0,tot-o)+Math.max(0,tot-a);
+  return '<button class="dhandle'+(done?' done':'')+'" id="d-open" title="Registos diários — Oxigénio '+o+'/'+tot+' · Alimentação '+a+'/'+tot+'" aria-label="Abrir registos diários">'+DIARY_ICON+
+    '<span class="dh-txt">Registos diários</span><span class="dh-st'+(done?'':' todo')+'">'+(done?'✓':'')+'</span></button>'}
 function updateDBtn(){var b=$("d-open");if(b){b.outerHTML=dBtnHtml();bindDBtn()}}
 function bindDBtn(){var b=$("d-open");if(b)b.onclick=function(){openDiary(todayKey())}}
 

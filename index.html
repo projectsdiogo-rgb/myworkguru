@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261122160538">
+<link rel="modulepreload" href="app.js?v=20261122162352">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -518,12 +518,16 @@ nav.sections button{display:inline-flex;align-items:center;gap:7px}
 .ro .mv-del{display:none!important}
 
 /* v17 registos diários (painel lateral) */
-.dbtn{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;flex-wrap:wrap}
-.dbtn b{background:rgba(255,255,255,.22);border-radius:99px;padding:1px 8px;font-size:12px}
-.dbtn.done{background:var(--ok)}
+.dhandle{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;align-items:center;gap:8px;width:34px;padding:12px 0;border:0;border-radius:0 14px 14px 0;background:var(--accent);color:#fff;cursor:pointer;box-shadow:2px 4px 16px rgba(0,0,0,.18);transition:width .15s,padding .15s}
+.dhandle:hover{width:40px}
+.dhandle .dh-txt{writing-mode:vertical-rl;transform:rotate(180deg);font:600 12.5px var(--font);letter-spacing:.04em;white-space:nowrap}
+.dhandle .dh-st{font:700 11px var(--font);line-height:1}.dhandle .dh-st.todo{width:9px;height:9px;border-radius:50%;background:#ffc04d;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+.dhandle.done{background:var(--ok)}
+body.drawer-on .dhandle{opacity:0;pointer-events:none}
+@media (max-width:900px){.dhandle{width:28px;padding:10px 0;gap:6px;top:auto;bottom:calc(96px + var(--safe-b));transform:none}.dhandle .dh-txt{font-size:11.5px}.dhandle svg{width:15px;height:15px}}
 #drawer{position:fixed;inset:0;z-index:90;pointer-events:none}
 #drawer .dr-bg{position:absolute;inset:0;background:rgba(5,12,18,.35);opacity:0;transition:opacity .25s}
-#drawer .dr{position:absolute;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);box-shadow:-10px 0 40px rgba(0,0,0,.18);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;padding-top:var(--safe-t)}
+#drawer .dr{position:absolute;top:0;left:0;bottom:0;width:min(520px,100%);background:var(--surface);box-shadow:10px 0 40px rgba(0,0,0,.18);display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .25s ease;padding-top:var(--safe-t)}
 #drawer.open{pointer-events:auto}#drawer.open .dr-bg{opacity:1}#drawer.open .dr{transform:none}
 body.drawer-on{overflow:hidden}
 .dr-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px 18px 8px}
@@ -559,6 +563,6 @@ body.drawer-on{overflow:hidden}
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261122160538"></script>
+<script type="module" src="app.js?v=20261122162352"></script>
 </body>
 </html>
