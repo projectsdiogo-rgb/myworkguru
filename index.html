@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261122162723">
+<link rel="modulepreload" href="app.js?v=20261124145433">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -571,11 +571,27 @@ body.drawer-on{overflow:hidden}
 #drawer .oxy-in::placeholder{-webkit-text-fill-color:color-mix(in srgb,var(--muted) 60%,transparent)}
 #drawer .saved .oxy-in{background:color-mix(in srgb,var(--ok) 10%,var(--bg))}
 .dr-foot input[type=month]{flex:1}
+
+/* v19 Mapa como separador central */
+nav.sections .nav-main{background:var(--accent);color:var(--accent-ink,#fff);padding:8px 14px;gap:7px}
+nav.sections .nav-main:not(.on){background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+nav.sections .nav-main.on{background:var(--accent);color:#fff}
+nav.sections .nav-main svg{width:18px;height:18px}
+nav.sections .nav-sep{width:1px;align-self:stretch;margin:6px 6px;background:var(--line)}
+nav.sections button:not(.nav-main){font-size:14px}
+@media (max-width:900px){
+  .tabbar{align-items:flex-end;overflow:visible}
+  .tabbar .tb-main{flex:1.15;padding-top:0;background:transparent!important;color:var(--muted)}
+  .tabbar .tb-ring{width:56px;height:56px;margin-top:-24px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);border:2px solid var(--accent);box-shadow:0 4px 14px rgba(0,0,0,.18);transition:background .15s,color .15s}
+  .tabbar .tb-main.on .tb-ring{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tabbar .tb-main.on{color:var(--accent)}
+  .tabbar .tb-ring svg{width:26px;height:26px}
+}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261122162723"></script>
+<script type="module" src="app.js?v=20261124145433"></script>
 </body>
 </html>

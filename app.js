@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261122162723";
+var APP_VERSION="20261124145433";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -21,6 +21,9 @@ var TABS=[
   ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
+/* O Mapa é o separador principal: no telemóvel fica ao centro da barra; no PC em primeiro e em destaque. */
+var TABBAR_ORDER=["lt","transf","mapa","fichas","racoes"];
+var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
 var TAB_SHORT={lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
 function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
 function tabHash(k){return k==="lt"?LT_HASH:(k==="transf"?"transferencias":k)}
@@ -298,12 +301,12 @@ var root=$("root");
 function render(){
   root.innerHTML='<div class="app">'+
    '<header class="top"><div class="brand"><img class="logo-mark" src="logo-mark.svg" alt="" width="34" height="34">MyWorkGuru</div>'+
-    '<nav class="sections">'+TABS.map(function(t){return '<button data-tab="'+t.k+'">'+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
+    '<nav class="sections">'+TABS.map(function(t){return (t.k==="lt"?'<span class="nav-sep"></span>':'')+'<button data-tab="'+t.k+'"'+(t.k==="mapa"?' class="nav-main"':'')+'>'+(t.k==="mapa"?MAP_ICON:'')+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
     '<div class="spacer"></div><div class="savestate" id="save"><i></i><span>A ligar…</span></div>'+
     '<button class="userbtn" id="userBtn" title="Conta"><span class="uav">'+esc(((me&&me.name)||"?").trim().charAt(0).toUpperCase())+'</span><span class="unm">'+esc((me&&me.name)||"")+(readOnly?' · só leitura':'')+'</span><span class="nbadge low" data-nt style="display:none"></span></button>'+
     '<button class="iconbtn" id="themeBtn" title="Tema claro/escuro"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></header>'+
    '<main id="view"></main>'+
-   '<nav class="tabbar">'+TABS.map(function(t){return '<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
+   '<nav class="tabbar">'+TABBAR_ORDER.map(function(k){return TABS.filter(function(t){return t.k===k})[0]}).map(function(t){return t.k==="mapa"?'<button data-tab="mapa" class="tb-main" aria-label="Mapa"><span class="tb-ring">'+MAP_ICON+'</span><span class="tl">Mapa</span></button>':'<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
   '</div><div class="toast" id="toast"></div>';
   idleSave();updateTeamBadge();
   $("userBtn").onclick=openAccount;
@@ -1517,7 +1520,7 @@ document.addEventListener("visibilitychange",function(){if(!document.hidden)chec
 applyTheme();
 if(window.matchMedia)try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){if(!ui.theme)applyTheme()})}catch(e){}
 (function(){var h=(location.hash||"").replace("#","");
-  if(BYID[h]){ui.tab="mapa";selected=h}else if(tabFromHash(h))ui.tab=tabFromHash(h);
+  if(BYID[h]){ui.tab="mapa";selected=h}else if(tabFromHash(h))ui.tab=tabFromHash(h);else ui.tab="mapa"; /* sem link direto, a app abre sempre no Mapa */
   if(ui.tab==="limpezas"||ui.tab==="tratamentos")ui.tab="lt";
   if(!TABS.some(function(t){return t.k===ui.tab}))ui.tab="mapa";
   if(ui.tab!=="mapa")setHash(tabHash(ui.tab));
