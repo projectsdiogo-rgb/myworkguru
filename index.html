@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261126071236">
+<link rel="modulepreload" href="app.js?v=20261126072106">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -597,11 +597,29 @@ nav.sections button:not(.nav-main){font-size:14px}
 .histd[open] summary svg{transform:rotate(180deg)}
 .histd[open]{padding:0 12px 12px}
 #sec-treat .histd{margin:4px 0 14px}#sec-treat .histd .htable{margin-top:4px}.histd[open] summary{padding:12px 2px}
+
+/* v21 desova / posturas */
+:root{--spawn:#e2558a}
+.sbadge{position:absolute;top:-11px;left:-9px;display:inline-flex;align-items:center;gap:3px;background:var(--spawn);color:#fff;font:700 11px/1 var(--font);padding:4px 7px;border-radius:20px;box-shadow:0 0 0 2px var(--surface),0 2px 6px rgba(0,0,0,.2);z-index:2;white-space:nowrap}
+.sbadge::after{content:"";position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--spawn);animation:spawnpulse 2.2s ease-out infinite;pointer-events:none}
+@keyframes spawnpulse{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.5)}}
+.tank.spawning{box-shadow:inset 0 0 0 2.5px var(--spawn)}
+.sbadge svg{width:13px;height:13px}
+.card .sbadge{top:8px;left:auto;right:8px}
+.legend .leg-spawn{display:inline-flex;align-items:center;gap:4px;color:var(--spawn);font-weight:700}
+.legend .leg-spawn[hidden]{display:none}
+.btn.spawn{background:var(--spawn);color:#fff;display:inline-flex;align-items:center;gap:7px}
+.spawnbox{border:1.5px solid color-mix(in srgb,var(--spawn) 55%,transparent);background:color-mix(in srgb,var(--spawn) 9%,var(--surface));border-radius:12px;padding:12px;margin-bottom:18px}
+.spawnbox .ct{display:flex;align-items:center;gap:7px;font-weight:700;color:var(--spawn)}
+.spawnbox .cm{font-size:13px;color:var(--muted);margin:4px 0 8px}
+.sp-form{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface2)}
+.sp-form .field input{background:var(--surface)}
+.ro #sp-new,.ro #sp-end{display:none}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261126071236"></script>
+<script type="module" src="app.js?v=20261126072106"></script>
 </body>
 </html>

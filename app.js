@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126071236";
+var APP_VERSION="20261126072106";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -295,6 +295,15 @@ function updateNavBadge(){
   var L=activeList(),late=L.some(function(x){return isLate(x.t)});
   document.querySelectorAll(".nbadge[data-nb]").forEach(function(b){b.textContent=L.length;b.style.display=L.length?"":"none";b.classList.toggle("late",late)});
 }
+/* ---- Desova / posturas: tankData.spawn = {since, note, by} enquanto há ovos; histórico em tankData.spawns ---- */
+var EGG_ICON='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="8" cy="14" rx="5" ry="6"/><ellipse cx="17" cy="9" rx="4" ry="5" opacity=".85"/><ellipse cx="17.5" cy="19" rx="3" ry="3.5" opacity=".7"/></svg>';
+function spawnOf(id){var d=peek(id);return d.spawn&&d.spawn.since?d.spawn:null}
+function spawnDays(sp){return Math.max(0,Math.floor((Date.now()-sp.since)/864e5))}
+function spawnBadge(id){var sp=spawnOf(id);if(!sp)return"";var n=spawnDays(sp);return '<span class="sbadge" title="Desova / posturas desde '+fmt(sp.since)+(sp.note?' — '+esc(sp.note):'')+'">'+EGG_ICON+(n?'<span>'+n+'d</span>':'')+'</span>'}
+function spawnCount(){return TANKS.filter(function(t){return spawnOf(t.id)}).length}
+function startSpawn(id,when,note){var td=tankData(id);td.spawn={since:when,note:note||"",by:me?me.name:""};td.updatedAt=Date.now();logTo(td,"Desova / posturas assinaladas"+(note?": "+note:"")+(Math.abs(Date.now()-when)>36e5?" (desde "+fmt(when)+")":""));persist(BYID[id].label+": desova assinalada");refreshTank(id);renderPanel()}
+function endSpawn(id){var td=tankData(id),sp=td.spawn;if(!sp)return;td.spawns=(td.spawns||[]).concat([{start:sp.since,end:Date.now(),note:sp.note||""}]).slice(-30);delete td.spawn;td.updatedAt=Date.now();
+  logTo(td,"Desova terminada ("+(spawnDays(sp)+1)+(spawnDays(sp)?" dias":" dia")+")");persist(BYID[id].label+": desova terminada",{label:"Anular",fn:function(){var t2=tankData(id);t2.spawn=sp;t2.spawns=(t2.spawns||[]).slice(0,-1);persist(null);refreshTank(id);renderPanel()}});refreshTank(id);renderPanel()}
 function badgeHTML(id){var t=activeTreat(id);if(!t)return"";var late=isLate(t);return '<span class="tbadge'+(late?' late':'')+'" data-lt="'+id+'" title="'+esc(t.product)+' — água desligada"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M4 4l16 16"/></svg><span data-cd="'+id+'">'+(late?"Ligar!":fmtDur(t.waterUntil-Date.now()))+'</span></span>'}
 
 /* ================= Shell ================= */
@@ -344,9 +353,9 @@ function boardHTML(){
 }
 function tankHTML(t){
   var d=peek(t.id),cd=cleanedThisWeek(t.id),cls="tank st-"+d.status+cleanCls(t.id),sub=d.species||"";
-  if(activeTreat(t.id))cls+=" treating";if(selected===t.id)cls+=" sel";if(!matches(t))cls+=" dim";
+  if(activeTreat(t.id))cls+=" treating";if(spawnOf(t.id))cls+=" spawning";if(selected===t.id)cls+=" sel";if(!matches(t))cls+=" dim";
   var aria=t.label+" — "+STL[d.status]+(cd?", limpo esta semana":", por limpar");
-  return '<button class="'+cls+'" data-id="'+t.id+'" style="left:'+t.x+'px;top:'+t.y+'px;width:'+t.w+'px;height:'+t.h+'px" aria-label="'+esc(aria)+'"><span class="tdot"></span>'+badgeHTML(t.id)+'<span class="tid">'+esc(t.label)+'</span><span class="tsub'+(sub?'':' none')+'">'+(sub?esc(sub):'sem espécie')+'</span></button>';
+  return '<button class="'+cls+'" data-id="'+t.id+'" style="left:'+t.x+'px;top:'+t.y+'px;width:'+t.w+'px;height:'+t.h+'px" aria-label="'+esc(aria)+'"><span class="tdot"></span>'+badgeHTML(t.id)+spawnBadge(t.id)+'<span class="tid">'+esc(t.label)+'</span><span class="tsub'+(sub?'':' none')+'">'+(sub?esc(sub):'sem espécie')+'</span></button>';
 }
 function mapHTML(){
   return '<div class="mapwrap" id="mapwrap">'+boardHTML()+
@@ -418,7 +427,7 @@ function viewMap(){
    seedBanner()+'<div class="stats" id="stats"></div>'+
    '<div class="toolbar"><label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Procurar tanque ou espécie" autocomplete="off"></label>'+
    '<div class="seg" id="viewSeg"><button data-v="map">Mapa</button><button data-v="list">Lista</button></div>'+
-   '<div class="legend"><span><i style="background:color-mix(in srgb,var(--cdone) 35%,var(--surface))"></i>Limpo esta semana</span><span><i style="background:color-mix(in srgb,var(--ctodo) 40%,var(--surface))"></i>Falta limpar</span><span><i style="background:var(--surface)"></i>Vazio</span><span class="hcount" id="hcount">'+cleanCount()+'/'+cleanTotal()+'</span></div></div>'+
+   '<div class="legend"><span><i style="background:color-mix(in srgb,var(--cdone) 35%,var(--surface))"></i>Limpo esta semana</span><span><i style="background:color-mix(in srgb,var(--ctodo) 40%,var(--surface))"></i>Falta limpar</span><span><i style="background:var(--surface)"></i>Vazio</span><span class="leg-spawn" id="legspawn"'+(spawnCount()?'':' hidden')+'>'+EGG_ICON+'Desova</span><span class="hcount" id="hcount">'+cleanCount()+'/'+cleanTotal()+'</span></div></div>'+
    '<div class="layout" id="layout"><div id="mainview"></div><div id="panelslot"></div></div>';
   var q=$("q");q.value=query;q.addEventListener("input",function(){query=q.value.trim();refreshMapFilters()});
   q.addEventListener("keydown",function(e){if(e.key==="Enter"){var r=TANKS.filter(matches);if(r.length){select(r[0].id);q.blur()}}});
@@ -444,7 +453,7 @@ function renderMapList(){
     var list=TANKS.filter(function(t){return t.group===g.k}).filter(matches).sort(natural);if(!list.length)return;
     html+='<div class="group"><h3>'+g.t+'<span>'+list.length+'</span></h3><div class="cards">'+list.map(function(t){
       var d=peek(t.id),cd=cleanedThisWeek(t.id),cls="card st-"+d.status+cleanCls(t.id)+(selected===t.id?" sel":"");
-      return '<div class="'+cls+'" style="padding-right:12px" data-id="'+t.id+'" role="button" tabindex="0"><div class="tid"><span class="cdot" title="'+STL[d.status]+'"></span>'+esc(t.label)+'</div><div class="tsub'+(d.species?'':' none')+'">'+(d.species?esc(d.species):'sem espécie')+'</div>'+(d.status!=="ok"?'<div class="tst">'+STL[d.status]+'</div>':'')+badgeHTML(t.id)+'</div>'}).join("")+'</div></div>';
+      return '<div class="'+cls+'" style="padding-right:12px" data-id="'+t.id+'" role="button" tabindex="0"><div class="tid"><span class="cdot" title="'+STL[d.status]+'"></span>'+esc(t.label)+'</div><div class="tsub'+(d.species?'':' none')+'">'+(d.species?esc(d.species):'sem espécie')+'</div>'+(d.status!=="ok"?'<div class="tst">'+STL[d.status]+'</div>':'')+badgeHTML(t.id)+spawnBadge(t.id)+'</div>'}).join("")+'</div></div>';
   });
   var mv=$("mainview");mv.innerHTML=html||'<p class="empty">Nenhum tanque corresponde ao filtro.</p>';
   mv.querySelectorAll(".card").forEach(function(c){c.onclick=function(){select(c.dataset.id)};c.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();select(c.dataset.id)}}});
@@ -454,6 +463,7 @@ function refreshTank(id){
   if(ui.view==="map")replaceTank(id);else renderMapList();
   renderStats();
   var hc=$("hcount");if(hc)hc.textContent=cleanCount()+"/"+cleanTotal();
+  var ls=$("legspawn");if(ls)ls.hidden=!spawnCount();
 }
 function updateTankEl(id){refreshTank(id)}
 function replaceTank(id){var el=document.querySelector('.tank[data-id="'+id+'"]');if(el){var tmp=document.createElement("div");tmp.innerHTML=tankHTML(BYID[id]);el.replaceWith(tmp.firstChild)}}
@@ -492,12 +502,22 @@ function renderPanel(){
       '<div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn green" id="t-on" style="flex:1">Água ligada</button><button class="btn ghost" id="t-cancel">Cancelar</button></div>'+
       '<a class="linkbtn" href="'+gcalLink([id],at)+'" target="_blank" rel="noopener">Lembrete no Google Calendar</a></div>';
   }else treatBox+='<div style="margin-bottom:18px"><button class="btn purple" id="t-new">+ Novo tratamento</button><div class="meta" style="margin-top:6px">'+(lastT?'Último: '+esc(lastT.product)+' · '+fmt(lastT.start):'Sem tratamentos registados')+'</div></div>';
+  var sp=spawnOf(id),lastSp=(d.spawns||[]).slice(-1)[0],spawnBox='';
+  if(d.status!=="empty"||sp){
+    spawnBox='<span class="lbl">Desova / posturas</span>';
+    if(sp)spawnBox+='<div class="spawnbox"><div class="ct">'+EGG_ICON.replace('width="12" height="12"','width="18" height="18"')+' Há posturas / ovos</div><div class="cm">Desde '+fmt(sp.since)+' · '+(spawnDays(sp)?spawnDays(sp)+(spawnDays(sp)===1?' dia':' dias'):'hoje')+(sp.by?' · por '+esc(sp.by):'')+'</div>'+(sp.note?'<div class="cm" style="color:var(--text)">'+esc(sp.note)+'</div>':'')+
+      '<button class="btn ghost" id="sp-end">Terminou a desova</button></div>';
+    else spawnBox+='<div style="margin-bottom:18px"><button class="btn spawn" id="sp-new">'+EGG_ICON.replace('width="12" height="12"','width="16" height="16"')+' Assinalar desova</button>'+
+      '<div id="sp-form" class="sp-form" hidden><div class="formgrid"><div class="field"><label class="lbl" for="sp-when">Desde</label><input id="sp-when" type="datetime-local" value="'+localDT(Date.now())+'" max="'+localDT(Date.now()+60000)+'"></div>'+
+      '<div class="field"><label class="lbl" for="sp-note">Nota (opcional)</label><input id="sp-note" maxlength="80" placeholder="Ex.: ovos flutuantes, ~200 ml"></div></div><div class="row"><button class="btn spawn" id="sp-ok" style="flex:1">Confirmar</button><button class="btn ghost" id="sp-cancel">Cancelar</button></div></div>'+
+      '<div class="meta" style="margin-top:6px">'+(lastSp?'Última: '+new Date(lastSp.start).toLocaleDateString("pt-PT")+' a '+new Date(lastSp.end).toLocaleDateString("pt-PT"):'Sem desovas registadas')+'</div></div>';
+  }
   slot.innerHTML=(isMobile()?'<div class="sheet-backdrop" id="bd"></div>':'')+
   '<aside class="panel"><div class="phead"><div style="flex:1"><h2>'+esc(t.label)+'</h2><span class="badge">'+(t.zone==="interior"?"Interior":"Exterior")+' · grupo '+t.group+'</span></div>'+
    '<button class="iconbtn" id="pclose" aria-label="Fechar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>'+
    '<div class="pbody">'+
     '<span class="lbl">Estado</span><div class="statuses">'+STATUSES.map(function(s){return '<button class="sbtn st-'+s.k+(d.status===s.k?' on':'')+'" data-s="'+s.k+'"><i></i>'+s.label+'</button>'}).join("")+'</div>'+
-    cleanBox+treatBox+
+    cleanBox+treatBox+spawnBox+
     '<span class="lbl">Peixe</span><div style="margin-bottom:18px"><div class="row" style="flex-wrap:wrap"><button class="btn ghost" id="x-from-panel">⇄ Transferir peixe</button>'+(t.group==="R"?'<button class="btn ghost" id="fi-from-panel">Ficha do peixe</button>':'')+'</div>'+(function(){var L=(d.log||[]).filter(function(l){return /^Transferência [→←]/.test(l.text)}).slice(-1)[0];return L?'<div class="meta" style="margin-top:6px">Última: '+esc(L.text.replace(/^Transferência /,""))+' · '+fmt(L.t)+'</div>':''})()+'</div>'+
     '<div class="field"><label class="lbl" for="fsp">Espécie</label><input id="fsp" maxlength="40" list="splist" placeholder="Ex.: Robalo, Dourada…" value="'+esc(d.species)+'"><datalist id="splist">'+speciesList().map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist></div>'+
     '<div class="field"><label class="lbl" for="fc">Lote / conteúdo</label><input id="fc" maxlength="80" placeholder="Ex.: lote 2311" value="'+esc(d.content)+'"></div>'+
@@ -527,6 +547,10 @@ function renderPanel(){
   if($("cl-past-ok"))$("cl-past-ok").onclick=function(){var t=pastWhen();if(!t||t>Date.now()+60000)return;captureDraft(tankData(id));setCleaned(id,true,false,t);refreshTank(id);renderPanel()};
   if($("cl-undo"))$("cl-undo").onclick=function(){captureDraft(tankData(id));setCleaned(id,false);refreshTank(id);renderPanel()};
   if($("t-new"))$("t-new").onclick=function(){captureDraft(tankData(id));openTreatModal([id])};
+  if($("sp-new"))$("sp-new").onclick=function(){if(readOnly){toast("Só leitura — não tem permissão para alterar");return}this.hidden=true;$("sp-form").hidden=false};
+  if($("sp-cancel"))$("sp-cancel").onclick=function(){$("sp-form").hidden=true;$("sp-new").hidden=false};
+  if($("sp-ok"))$("sp-ok").onclick=function(){var v=$("sp-when").value,w=v?new Date(v).getTime():Date.now();if(!(w>0))w=Date.now();if(w>Date.now()+60000){toast("A data não pode ser no futuro");return}captureDraft(tankData(id));startSpawn(id,w,$("sp-note").value.trim())};
+  if($("sp-end"))$("sp-end").onclick=function(){if(readOnly){toast("Só leitura — não tem permissão para alterar");return}captureDraft(tankData(id));endSpawn(id)};
   if($("x-from-panel"))$("x-from-panel").onclick=function(){captureDraft(tankData(id));openTransfer(id)};
   if($("fi-from-panel"))$("fi-from-panel").onclick=function(){captureDraft(tankData(id));openFicha(id)};
   if($("t-on"))$("t-on").onclick=function(){captureDraft(tankData(id));waterOn(id);showAlert();refreshTank(id);renderPanel();updateNavBadge()};
