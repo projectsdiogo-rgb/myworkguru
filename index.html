@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261126063911">
+<link rel="modulepreload" href="app.js?v=20261126065603">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -587,11 +587,20 @@ nav.sections button:not(.nav-main){font-size:14px}
   .tabbar .tb-main.on{color:var(--accent)}
   .tabbar .tb-ring svg{width:26px;height:26px}
 }
+
+/* v20 histórico recolhível no painel do tanque */
+.histd{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-top:4px}
+.histd summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.histd summary::-webkit-details-marker{display:none}
+.histd summary b{background:var(--surface2);color:var(--text);border-radius:99px;padding:1px 8px;font-size:11.5px;letter-spacing:0}
+.histd summary svg{margin-left:auto;transition:transform .2s}
+.histd[open] summary svg{transform:rotate(180deg)}
+.histd[open]{padding:0 12px 12px}.histd[open] summary{padding:12px 2px}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261126063911"></script>
+<script type="module" src="app.js?v=20261126065603"></script>
 </body>
 </html>

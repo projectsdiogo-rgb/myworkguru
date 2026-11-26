@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126063911";
+var APP_VERSION="20261126065603";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -21,6 +21,7 @@ var TABS=[
   ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
+var histOpenFor=null; /* histórico do tanque fechado por defeito; fica aberto só enquanto se mexe nesse tanque */
 /* O Mapa é o separador principal: no telemóvel fica ao centro da barra; no PC em primeiro e em destaque. */
 var TABBAR_ORDER=["lt","transf","mapa","fichas","racoes"];
 var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
@@ -502,11 +503,12 @@ function renderPanel(){
     '<div class="field"><label class="lbl" for="fc">Lote / conteúdo</label><input id="fc" maxlength="80" placeholder="Ex.: lote 2311" value="'+esc(d.content)+'"></div>'+
     '<div class="field"><label class="lbl" for="fn">Notas</label><textarea id="fn" placeholder="Observações sobre este tanque">'+esc(d.notes)+'</textarea></div>'+
     '<div class="row" style="justify-content:space-between;margin-bottom:20px"><span class="meta">Atualizado: '+fmt(d.updatedAt)+'</span><button class="btn" id="fsave" disabled>Guardar</button></div>'+
-    '<span class="lbl">Histórico</span>'+
+    '<details class="histd" id="histd"'+(histOpenFor===id?' open':'')+'><summary><span>Histórico</span><b>'+log.length+'</b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>'+
     '<div class="row"><input id="lognew" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;outline:none" placeholder="Adicionar registo…" maxlength="200"><button class="btn ghost" id="logadd">Adicionar</button></div>'+
     (log.length?'<ul class="log">'+log.slice(0,40).map(function(l){return '<li><time>'+fmt(l.t)+(l.by?' · '+esc(l.by):'')+'</time>'+esc(l.text)+'</li>'}).join("")+'</ul>':'<p class="empty" style="margin-top:10px">Sem registos ainda.</p>')+
-   '</div></aside>';
+   '</details></div></aside>';
   if(!wasOpen&&ui.view==="map"&&!isMobile())setTimeout(function(){fit();centerOn(id)},0);
+  $("histd").addEventListener("toggle",function(){histOpenFor=this.open?id:null});
   $("pclose").onclick=closePanel;var bd=$("bd");if(bd)bd.onclick=closePanel;
   slot.querySelectorAll(".sbtn").forEach(function(b){b.onclick=function(){
     var td=tankData(id);if(td.status===b.dataset.s)return;captureDraft(td);
