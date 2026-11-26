@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126073628";
+var APP_VERSION="20261126074559";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -17,16 +17,17 @@ var TABS=[
   {k:"mapa",label:"Mapa",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'},
   {k:"lt",label:"Limpezas e Tratamentos",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>'},
   ,{k:"transf",label:"Transferências",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>'}
+  ,{k:"posturas",label:"Posturas",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><ellipse cx="8.5" cy="14" rx="4.5" ry="5.5"/><ellipse cx="16.5" cy="8.5" rx="3.5" ry="4.5"/><ellipse cx="17" cy="18.5" rx="2.5" ry="3"/></svg>'}
   ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
   ,{k:"fichas",label:"Fichas",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
 var histOpenFor=null,treatHistOpen=false; /* histórico do tanque fechado por defeito; fica aberto só enquanto se mexe nesse tanque */
 /* O Mapa é o separador principal: no telemóvel fica ao centro da barra; no PC em primeiro e em destaque. */
-var TABBAR_ORDER=["lt","transf","mapa","racoes","fichas"];
+var TABBAR_ORDER=["lt","transf","mapa","posturas","racoes","fichas"];
 var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
-var TAB_SHORT={lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
-function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
+var TAB_SHORT={posturas:"Posturas",lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
+function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":h==="posturas"?"posturas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
 function tabHash(k){return k==="lt"?LT_HASH:(k==="transf"?"transferencias":k)}
 
 /* Layout (quadro 1000x750, segundo o esboço) */
@@ -301,9 +302,9 @@ function spawnOf(id){var d=peek(id);return d.spawn&&d.spawn.since?d.spawn:null}
 function spawnDays(sp){return Math.max(0,Math.floor((Date.now()-sp.since)/864e5))}
 function spawnBadge(id){var sp=spawnOf(id);if(!sp)return"";var n=spawnDays(sp);return '<span class="sbadge" title="Desova / posturas desde '+fmt(sp.since)+(sp.note?' — '+esc(sp.note):'')+'">'+EGG_ICON+(n?'<span>'+n+'d</span>':'')+'</span>'}
 function spawnCount(){return TANKS.filter(function(t){return spawnOf(t.id)}).length}
-function startSpawn(id,when,note){var td=tankData(id);td.spawn={since:when,note:note||"",by:me?me.name:""};td.updatedAt=Date.now();logTo(td,"Desova / posturas assinaladas"+(note?": "+note:"")+(Math.abs(Date.now()-when)>36e5?" (desde "+fmt(when)+")":""));persist(BYID[id].label+": desova assinalada");refreshTank(id);renderPanel()}
+function startSpawn(id,when,note){var td=tankData(id);td.spawn={since:when,note:note||"",by:me?me.name:""};td.updatedAt=Date.now();logTo(td,"Desova / posturas assinaladas"+(note?": "+note:"")+(Math.abs(Date.now()-when)>36e5?" (desde "+fmt(when)+")":""));persist(BYID[id].label+": desova assinalada");refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
 function endSpawn(id){var td=tankData(id),sp=td.spawn;if(!sp)return;td.spawns=(td.spawns||[]).concat([{start:sp.since,end:Date.now(),note:sp.note||""}]).slice(-30);delete td.spawn;td.updatedAt=Date.now();
-  logTo(td,"Desova terminada ("+(spawnDays(sp)+1)+(spawnDays(sp)?" dias":" dia")+")");persist(BYID[id].label+": desova terminada",{label:"Anular",fn:function(){var t2=tankData(id);t2.spawn=sp;t2.spawns=(t2.spawns||[]).slice(0,-1);persist(null);refreshTank(id);renderPanel()}});refreshTank(id);renderPanel()}
+  logTo(td,"Desova terminada ("+(spawnDays(sp)+1)+(spawnDays(sp)?" dias":" dia")+")");persist(BYID[id].label+": desova terminada",{label:"Anular",fn:function(){var t2=tankData(id);t2.spawn=sp;t2.spawns=(t2.spawns||[]).slice(0,-1);persist(null);refreshTank(id);renderPanel();if(ui.tab==="posturas")viewPosturas()}});refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
 function badgeHTML(id){var t=activeTreat(id);if(!t)return"";var late=isLate(t);return '<span class="tbadge'+(late?' late':'')+'" data-lt="'+id+'" title="'+esc(t.product)+' — água desligada"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M4 4l16 16"/></svg><span data-cd="'+id+'">'+(late?"Ligar!":fmtDur(t.waterUntil-Date.now()))+'</span></span>'}
 
 /* ================= Shell ================= */
@@ -311,12 +312,12 @@ var root=$("root");
 function render(){
   root.innerHTML='<div class="app">'+
    '<header class="top"><div class="brand"><img class="logo-mark" src="logo-mark.svg" alt="" width="34" height="34">MyWorkGuru</div>'+
-    '<nav class="sections">'+TABS.map(function(t){return (t.k==="lt"?'<span class="nav-sep"></span>':'')+'<button data-tab="'+t.k+'"'+(t.k==="mapa"?' class="nav-main"':'')+'>'+(t.k==="mapa"?MAP_ICON:'')+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
+    '<nav class="sections">'+TABS.map(function(t){return (t.k==="lt"?'<span class="nav-sep"></span>':'')+'<button data-tab="'+t.k+'"'+(t.k==="mapa"?' class="nav-main"':'')+'>'+(t.k==="mapa"?MAP_ICON:'')+t.label+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+(t.k==="posturas"?'<span class="nbadge spawnb" data-ns style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
     '<div class="spacer"></div><div class="savestate" id="save"><i></i><span>A ligar…</span></div>'+
     '<button class="userbtn" id="userBtn" title="Conta"><span class="uav">'+esc(((me&&me.name)||"?").trim().charAt(0).toUpperCase())+'</span><span class="unm">'+esc((me&&me.name)||"")+(readOnly?' · só leitura':'')+'</span><span class="nbadge low" data-nt style="display:none"></span></button>'+
     '<button class="iconbtn" id="themeBtn" title="Tema claro/escuro"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></header>'+
    '<main id="view"></main>'+
-   '<nav class="tabbar">'+TABBAR_ORDER.map(function(k){return TABS.filter(function(t){return t.k===k})[0]}).map(function(t){return t.k==="mapa"?'<button data-tab="mapa" class="tb-main" aria-label="Mapa"><span class="tb-ring">'+MAP_ICON+'</span><span class="tl">Mapa</span></button>':'<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+'</button>'}).join("")+'</nav>'+
+   '<nav class="tabbar">'+tabbarHTML()+'</nav>'+
   '</div><div class="toast" id="toast"></div>';
   idleSave();updateTeamBadge();
   $("userBtn").onclick=openAccount;
@@ -324,6 +325,10 @@ function render(){
   document.querySelectorAll("[data-tab]").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
   renderView();updateNavBadge();updateFeedBadge();
 }
+function tabBtn(t){return t.k==="mapa"?'<button data-tab="mapa" class="tb-main" aria-label="Mapa"><span class="tb-ring">'+MAP_ICON+'</span><span class="tl">Mapa</span></button>':'<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+(t.k==="posturas"?'<span class="nbadge spawnb" data-ns style="display:none"></span>':'')+'</button>'}
+/* Barra do telemóvel: o Mapa fica sempre ao centro; os outros separadores repartem-se pelos dois lados */
+function tabbarHTML(){var T=TABBAR_ORDER.map(function(k){return TABS.filter(function(t){return t.k===k})[0]}).filter(Boolean),i=TABBAR_ORDER.indexOf("mapa");
+  return '<div class="tb-side">'+T.slice(0,i).map(tabBtn).join("")+'</div>'+tabBtn(T[i])+'<div class="tb-side">'+T.slice(i+1).map(tabBtn).join("")+'</div>'}
 function setTab(k,keepSel){
   if(k!=="mapa"&&dOpen)closeDiary();
   if(dirty)saveDraft(true);
@@ -334,9 +339,9 @@ function setTab(k,keepSel){
 function setHash(h){try{history.replaceState(null,"",h?"#"+h:location.pathname+location.search)}catch(e){location.hash=h}}
 function renderView(){
   document.querySelectorAll("[data-tab]").forEach(function(b){b.classList.toggle("on",b.dataset.tab===ui.tab)});
-  if(ui.tab==="lt")viewLT();else if(ui.tab==="racoes")viewFeed();else if(ui.tab==="transf")viewTransfers();else if(ui.tab==="fichas")viewFichas();else viewMap();
+  if(ui.tab==="lt")viewLT();else if(ui.tab==="racoes")viewFeed();else if(ui.tab==="transf")viewTransfers();else if(ui.tab==="fichas")viewFichas();else if(ui.tab==="posturas")viewPosturas();else viewMap();
 }
-function refreshAll(){renderView();updateNavBadge()}
+function refreshAll(){renderView();updateNavBadge();updatePostBadge()}
 
 /* ================= Quadro (mapa) com pan/zoom ================= */
 var cam=null,camKey="";
@@ -463,7 +468,7 @@ function refreshTank(id){
   if(ui.view==="map")replaceTank(id);else renderMapList();
   renderStats();
   var hc=$("hcount");if(hc)hc.textContent=cleanCount()+"/"+cleanTotal();
-  var ls=$("legspawn");if(ls)ls.hidden=!spawnCount();
+  var ls=$("legspawn");if(ls)ls.hidden=!spawnCount();updatePostBadge();
 }
 function updateTankEl(id){refreshTank(id)}
 function replaceTank(id){var el=document.querySelector('.tank[data-id="'+id+'"]');if(el){var tmp=document.createElement("div");tmp.innerHTML=tankHTML(BYID[id]);el.replaceWith(tmp.firstChild)}}
@@ -1099,10 +1104,68 @@ function openEggLot(id,lid){
       read();L.by=me?me.name:"";L.upd=Date.now();
       var t2=tankData(id),A=(t2.eggLots||[]).filter(function(x){return x.id!==L.id});A.push(clean(L));A.sort(function(a,b){return a.t-b.t});t2.eggLots=A.slice(-100);t2.updatedAt=Date.now();
       var c=eggCalc(L);if(isNew)logTo(t2,"Recolha de ovos registada"+(c.viab!=null?" · viáveis "+nf(c.viab,0)+"%":""));
-      persist(BYID[id].label+": recolha de ovos guardada");openEggLots(id);
+      persist(BYID[id].label+": recolha de ovos guardada");openEggLots(id);if(ui.tab==="posturas")viewPosturas();
     };
     if($("e-del"))$("e-del").onclick=function(){var b=this;if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar?";b.style.color="var(--alert)";return}
-      var t2=tankData(id),old=t2.eggLots;t2.eggLots=(t2.eggLots||[]).filter(function(x){return x.id!==L.id});persist("Recolha apagada",{label:"Anular",fn:function(){tankData(id).eggLots=old;persist(null)}});openEggLots(id)};
+      var t2=tankData(id),old=t2.eggLots;t2.eggLots=(t2.eggLots||[]).filter(function(x){return x.id!==L.id});persist("Recolha apagada",{label:"Anular",fn:function(){tankData(id).eggLots=old;persist(null);if(ui.tab==="posturas")viewPosturas()}});openEggLots(id);if(ui.tab==="posturas")viewPosturas()};
+  });
+}
+
+/* ================= Separador: POSTURAS (desovas ativas, recolhas de ovos e histórico) ================= */
+var postHistOpen=false;
+function spawningTanks(){return TANKS.filter(function(t){return spawnOf(t.id)}).sort(function(a,b){return spawnOf(a.id).since-spawnOf(b.id).since})}
+function allEggLots(){var A=[];TANKS.forEach(function(t){(peek(t.id).eggLots||[]).forEach(function(l){A.push({id:t.id,l:l})})});return A.sort(function(a,b){return b.l.t-a.l.t})}
+function pct0(v){return v!=null?nf(v,0)+"%":"—"}
+function updatePostBadge(){var n=spawnCount();document.querySelectorAll(".nbadge[data-ns]").forEach(function(b){b.textContent=n;b.style.display=n?"":"none"})}
+function viewPosturas(){
+  var v=$("view"),S=spawningTanks(),A=allEggLots();
+  var H=[];TANKS.forEach(function(t){(peek(t.id).spawns||[]).forEach(function(s){H.push({id:t.id,s:s})})});H.sort(function(a,b){return b.s.end-a.s.end});
+  var html='<div class="pagehead"><div><h1>Posturas</h1><p>Tanques com desova, recolhas de ovos e as taxas de viabilidade, eclosão e sobrevivência.</p></div>'+(readOnly?'':'<button class="btn spawn" id="ps-new">'+EGG_ICON.replace('width="12" height="12"','width="16" height="16"')+' Assinalar desova</button>')+'</div>';
+  html+='<div class="section-title big">Em desova agora<span>'+S.length+'</span></div>';
+  if(!S.length)html+='<div class="ps-empty">'+EGG_ICON.replace('width="12" height="12"','width="40" height="40"')+'<p>Nenhum tanque com posturas neste momento.</p><p class="hint" style="margin:0">Assinale uma desova aqui ou no painel do tanque, no Mapa.</p></div>';
+  else html+='<div class="psgrid">'+S.map(function(t){
+    var sp=spawnOf(t.id),d=peek(t.id),L=eggLots(t.id),last=L[0],c=last?eggCalc(last):null,n=spawnDays(sp);
+    return '<div class="pscard"><div class="ps-h"><div><div class="ps-t">'+esc(t.label)+'</div><div class="ps-sp">'+(d.species?esc(d.species):'<span class="muted">sem espécie</span>')+'</div></div><span class="sbadge static">'+EGG_ICON+'<span>'+(n?n+'d':'hoje')+'</span></span></div>'+
+      '<div class="ps-m">Desde <b>'+fmt(sp.since)+'</b>'+(sp.by?' · '+esc(sp.by):'')+'</div>'+(sp.note?'<div class="ps-note">'+esc(sp.note)+'</div>':'')+
+      (c?'<div class="ps-rates"><div><span>Viáveis</span><b class="'+rateCls(c.viab,70,50)+'">'+pct0(c.viab)+'</b></div><div><span>Eclosão</span><b class="'+rateCls(c.tEcl,70,40)+'">'+pct0(c.tEcl)+'</b></div><div><span>Sobrev.</span><b class="'+rateCls(c.tSob,60,30)+'">'+pct0(c.tSob)+'</b></div></div><div class="ps-last">Última recolha: '+new Date(last.t).toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+(last.phase?' · '+esc(last.phase):'')+' · '+L.length+(L.length===1?' recolha':' recolhas')+'</div>'
+        :'<div class="ps-last">Ainda sem recolhas de ovos.</div>')+
+      '<div class="ps-act">'+(readOnly?'':'<button class="btn spawn sm" data-pnew="'+t.id+'">+ Recolha</button>')+'<button class="btn ghost sm" data-plots="'+t.id+'">Ver recolhas</button>'+
+        (readOnly?'':'<button class="btn ghost sm" data-pedit="'+t.id+'">Editar</button>')+'<button class="linkbtn" data-pmap="'+t.id+'">Ver no mapa</button></div></div>'}).join("")+'</div>';
+  html+='<div class="section-title big">Recolhas de ovos<span>'+A.length+'</span></div>';
+  if(!A.length)html+='<p class="empty">Ainda não há recolhas registadas.</p>';
+  else html+='<table class="htable pstable"><thead><tr><th>Data</th><th>Tanque</th><th class="hide-m">Fase</th><th style="text-align:right">Viáveis</th><th style="text-align:right">Eclosão</th><th style="text-align:right">Sobrev.</th></tr></thead><tbody>'+
+    A.slice(0,60).map(function(x){var c=eggCalc(x.l);return '<tr data-plot="'+x.id+'|'+x.l.id+'" style="cursor:pointer"><td>'+new Date(x.l.t).toLocaleDateString("pt-PT",{day:"2-digit",month:"short",year:"2-digit"})+'</td><td class="tk">'+esc(BYID[x.id].label)+'</td><td class="hide-m">'+esc(x.l.phase||"—")+'</td>'+
+      '<td style="text-align:right" class="'+rateCls(c.viab,70,50)+'"><b>'+pct0(c.viab)+'</b></td><td style="text-align:right" class="'+rateCls(c.tEcl,70,40)+'"><b>'+pct0(c.tEcl)+'</b></td><td style="text-align:right" class="'+rateCls(c.tSob,60,30)+'"><b>'+pct0(c.tSob)+'</b></td></tr>'}).join("")+'</tbody></table>';
+  html+='<details class="histd" id="pshist" style="margin-top:18px"'+(postHistOpen?' open':'')+'><summary><span>Desovas terminadas</span><b>'+H.length+'</b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>'+
+    (H.length?'<table class="htable"><thead><tr><th>Tanque</th><th>Início</th><th>Fim</th><th style="text-align:right">Dias</th></tr></thead><tbody>'+H.slice(0,80).map(function(h){return '<tr><td class="tk">'+esc(BYID[h.id].label)+(h.s.note?'<div class="sub">'+esc(h.s.note)+'</div>':'')+'</td><td>'+new Date(h.s.start).toLocaleDateString("pt-PT")+'</td><td>'+new Date(h.s.end).toLocaleDateString("pt-PT")+'</td><td style="text-align:right">'+(Math.floor((h.s.end-h.s.start)/864e5)+1)+'</td></tr>'}).join("")+'</tbody></table>':'<p class="empty">Ainda não há desovas terminadas.</p>')+'</details>';
+  v.innerHTML=html;
+  if($("ps-new"))$("ps-new").onclick=openNewSpawn;
+  v.querySelectorAll("[data-pnew]").forEach(function(b){b.onclick=function(){openEggLot(b.dataset.pnew,null)}});
+  v.querySelectorAll("[data-plots]").forEach(function(b){b.onclick=function(){openEggLots(b.dataset.plots)}});
+  v.querySelectorAll("[data-pedit]").forEach(function(b){b.onclick=function(){editSpawn(b.dataset.pedit)}});
+  v.querySelectorAll("[data-pmap]").forEach(function(b){b.onclick=function(){select(b.dataset.pmap)}});
+  v.querySelectorAll("[data-plot]").forEach(function(r){r.onclick=function(){var p=r.dataset.plot.split("|");openEggLot(p[0],p[1])}});
+  $("pshist").addEventListener("toggle",function(){postHistOpen=this.open});
+  updatePostBadge();
+}
+function spawnFormHtml(sp,withTank){
+  var opts=withTank?TANKS.filter(function(t){return !spawnOf(t.id)&&peek(t.id).status!=="empty"}).sort(natural):[];
+  return (withTank?'<div class="field"><label class="lbl" for="sf-tank">Tanque</label><select id="sf-tank" class="selectf">'+opts.map(function(t){var s=peek(t.id).species;return '<option value="'+t.id+'">'+esc(t.label)+(s?' — '+esc(s):'')+'</option>'}).join("")+'</select></div>':'')+
+    '<div class="formgrid"><div class="field"><label class="lbl" for="sf-when">Desde</label><input id="sf-when" type="datetime-local" value="'+localDT(sp?sp.since:Date.now())+'" max="'+localDT(Date.now()+60000)+'"></div>'+
+    '<div class="field"><label class="lbl" for="sf-note">Nota (opcional)</label><input id="sf-note" maxlength="80" value="'+esc(sp&&sp.note||"")+'" placeholder="Ex.: ovos flutuantes, ~200 ml"></div></div>';
+}
+function readWhen(){var v=$("sf-when").value,w=v?new Date(v).getTime():Date.now();if(!(w>0))w=Date.now();if(w>Date.now()+60000){toast("A data não pode ser no futuro");return null}return w}
+function openNewSpawn(){
+  openSheet("Assinalar desova","Escolha o tanque onde há posturas / ovos",spawnFormHtml(null,true)+'<button class="btn spawn" id="sf-ok" style="width:100%;justify-content:center">Confirmar</button>',function(){
+    if(!$("sf-tank").options.length){$("sf-ok").disabled=true}
+    $("sf-ok").onclick=function(){var w=readWhen();if(w==null)return;var id=$("sf-tank").value,note=$("sf-note").value.trim();if(!id)return;closeSheet();startSpawn(id,w,note);if(ui.tab==="posturas")viewPosturas()};
+  });
+}
+function editSpawn(id){
+  var sp=spawnOf(id);if(!sp)return;
+  openSheet("Editar desova · "+esc(BYID[id].label),"",spawnFormHtml(sp,false)+'<div class="row"><button class="btn" id="sf-ok" style="flex:1">Guardar</button><button class="btn ghost" id="sf-end">Terminou a desova</button></div>',function(){
+    $("sf-ok").onclick=function(){var w=readWhen();if(w==null)return;var td=tankData(id);td.spawn.since=w;td.spawn.note=$("sf-note").value.trim();td.updatedAt=Date.now();logTo(td,"Desova editada");persist(BYID[id].label+": desova atualizada");closeSheet();refreshTank(id);if(ui.tab==="posturas")viewPosturas()};
+    $("sf-end").onclick=function(){closeSheet();endSpawn(id);if(ui.tab==="posturas")viewPosturas()};
   });
 }
 

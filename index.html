@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261126073628">
+<link rel="modulepreload" href="app.js?v=20261126074559">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -639,11 +639,34 @@ nav.sections button:not(.nav-main){font-size:14px}
 .eproto{margin-top:12px;font-size:13.5px;color:var(--muted)}.eproto summary{cursor:pointer;font-weight:600;color:var(--accent)}
 .eproto ul{padding-left:18px;margin:8px 0 0;line-height:1.6}
 .esave{position:sticky;bottom:-1px;background:var(--surface);padding:10px 0 4px;margin-top:8px}
+
+/* v23 separador Posturas */
+.tabbar .tb-side{flex:1;display:flex;min-width:0}
+.tabbar .tb-main{flex:0 0 70px!important}
+.tabbar .tb-side button{flex:1;min-width:0}
+.tabbar .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.nbadge.spawnb{background:var(--spawn);color:#fff}
+.sbadge.static{position:static;box-shadow:none}.sbadge.static::after{display:none}
+.ps-empty{text-align:center;color:var(--muted);padding:26px 16px;border:1.5px dashed var(--line);border-radius:var(--r);background:var(--surface)}
+.ps-empty svg{color:var(--spawn);opacity:.6}
+.psgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:22px}
+.pscard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--spawn);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.ps-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ps-t{font-family:var(--display);font-weight:700;font-size:20px}.ps-sp{font-size:13px;color:var(--muted)}
+.ps-m{font-size:13px;color:var(--muted)}.ps-m b{color:var(--text);font-weight:600}
+.ps-note{font-size:13.5px;background:var(--surface2);border-radius:8px;padding:6px 9px}
+.ps-rates{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px;background:color-mix(in srgb,var(--spawn) 7%,var(--surface2));border-radius:10px;padding:8px}
+.ps-rates span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}.ps-rates b{font-family:var(--display);font-size:18px}
+.ps-last{font-size:12.5px;color:var(--muted)}
+.ps-act{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.btn.sm{padding:7px 11px;font-size:13px}
+@media (max-width:520px){.pstable{table-layout:fixed;width:100%}.pstable th,.pstable td{overflow:hidden;text-overflow:ellipsis;padding-left:6px!important;padding-right:6px!important;font-size:13px}.pstable th{font-size:10.5px}}
+.pstable td.good b,.pstable td.mid b,.pstable td.bad b{color:inherit}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261126073628"></script>
+<script type="module" src="app.js?v=20261126074559"></script>
 </body>
 </html>
