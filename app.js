@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261124145433";
+var APP_VERSION="20261126063911";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
