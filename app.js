@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126072816";
+var APP_VERSION="20261126073628";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1048,7 +1048,7 @@ function openEggLot(id,lid){
       F("e-ttank","Temperatura do tanque",L.tTank,"°C")+F("e-tinc","Temperatura da incubadora",L.tInc,"°C")+
     '</div><div class="eres">'+R("r-h2o2","H₂O₂ a usar (1 mL por litro)")+R("r-dt","Diferença de temperatura")+R("r-esp","Larvas esperadas após eclosão")+'</div>'+
     '<div class="ewarn" id="r-acl" hidden>⚠️ Diferença ≥ 0,5 °C: aclimatar os ovos à incubadora antes de os colocar.</div>'+
-    '<p class="hint">Agitar suavemente e trocar a água (90–110 s). Lavar 3 a 4 vezes e colocar os ovos com cuidado na incubadora.</p></details>'+
+    '<div class="enote">🧪 Agitar suavemente e trocar a água (90–110 s). Lavar 3 a 4 vezes e colocar os ovos com cuidado na incubadora.</div></details>'+
     '<details class="estep"'+(L.ecl.counts.length?' open':'')+'><summary><i>3</i>Taxa de eclosão</summary><div class="formgrid">'+
       F("e-evol","Volume do balde",L.ecl.vol,"L")+
       '<div class="field full"><label class="lbl" for="e-ecnt">Contagens das pipetagens de 1 mL <small>(15 a 20, separadas por espaço)</small></label><textarea id="e-ecnt" inputmode="decimal" style="min-height:64px" placeholder="Ex.: 12 9 14 11 10 …">'+L.ecl.counts.join(" ")+'</textarea></div>'+
