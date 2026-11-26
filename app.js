@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126074559";
+var APP_VERSION="20261126075134";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -24,7 +24,10 @@ var TABS=[
 var LT_HASH="limpezas-tratamentos";
 var histOpenFor=null,treatHistOpen=false; /* histórico do tanque fechado por defeito; fica aberto só enquanto se mexe nesse tanque */
 /* O Mapa é o separador principal: no telemóvel fica ao centro da barra; no PC em primeiro e em destaque. */
-var TABBAR_ORDER=["lt","transf","mapa","posturas","racoes","fichas"];
+/* Telemóvel: 4 atalhos + Mapa ao centro; os separadores menos usados ficam em "Mais" */
+var TABBAR_ORDER=["lt","posturas","mapa","racoes","more"],MORE_TABS=["transf","fichas"];
+var MORE_DESC={transf:"Mover peixe entre tanques e saídas",fichas:"Fichas públicas dos tanques e QR codes"};
+var MORE_ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
 var TAB_SHORT={posturas:"Posturas",lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
 function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":h==="posturas"?"posturas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
@@ -322,13 +325,25 @@ function render(){
   idleSave();updateTeamBadge();
   $("userBtn").onclick=openAccount;
   $("themeBtn").onclick=function(){ui.theme=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";saveUI();applyTheme()};
-  document.querySelectorAll("[data-tab]").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
+  document.querySelectorAll("nav.sections [data-tab]").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});bindTabbar();
   renderView();updateNavBadge();updateFeedBadge();
 }
 function tabBtn(t){return t.k==="mapa"?'<button data-tab="mapa" class="tb-main" aria-label="Mapa"><span class="tb-ring">'+MAP_ICON+'</span><span class="tl">Mapa</span></button>':'<button data-tab="'+t.k+'">'+t.icon+'<span class="tl">'+(TAB_SHORT[t.k]||t.label)+'</span>'+(t.k==="lt"?'<span class="nbadge" data-nb style="display:none"></span>':'')+(t.k==="racoes"?'<span class="nbadge low" data-nf style="display:none"></span>':'')+(t.k==="posturas"?'<span class="nbadge spawnb" data-ns style="display:none"></span>':'')+'</button>'}
-/* Barra do telemóvel: o Mapa fica sempre ao centro; os outros separadores repartem-se pelos dois lados */
-function tabbarHTML(){var T=TABBAR_ORDER.map(function(k){return TABS.filter(function(t){return t.k===k})[0]}).filter(Boolean),i=TABBAR_ORDER.indexOf("mapa");
-  return '<div class="tb-side">'+T.slice(0,i).map(tabBtn).join("")+'</div>'+tabBtn(T[i])+'<div class="tb-side">'+T.slice(i+1).map(tabBtn).join("")+'</div>'}
+/* Barra do telemóvel: cinco lugares iguais, Mapa em destaque ao centro */
+function tabbarHTML(){return TABBAR_ORDER.map(function(k){
+  if(k==="more")return '<button data-more class="tb-more'+(MORE_TABS.indexOf(ui.tab)>=0?' on':'')+'" aria-label="Mais separadores">'+(MORE_TABS.indexOf(ui.tab)>=0?TABS.filter(function(t){return t.k===ui.tab})[0].icon:MORE_ICON)+'<span class="tl">'+(MORE_TABS.indexOf(ui.tab)>=0?(TAB_SHORT[ui.tab]||ui.tab):'Mais')+'</span></button>';
+  return tabBtn(TABS.filter(function(t){return t.k===k})[0])}).join("")}
+function bindTabbar(){document.querySelectorAll("nav.tabbar [data-tab]").forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});var mb=document.querySelector("nav.tabbar [data-more]");if(mb)mb.onclick=openMore}
+function openMore(){
+  var m=$("moremenu");if(m){m.remove();return}
+  m=document.createElement("div");m.id="moremenu";
+  m.innerHTML='<div class="mm-back"></div><div class="mm-sheet" role="menu"><div class="mm-grab"></div>'+MORE_TABS.map(function(k){var t=TABS.filter(function(x){return x.k===k})[0];
+    return '<button class="mm-item'+(ui.tab===k?' on':'')+'" data-go="'+k+'"><span class="mm-ic">'+t.icon+'</span><span class="mm-tx"><b>'+t.label+'</b><small>'+MORE_DESC[k]+'</small></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>'}).join("")+'</div>';
+  document.body.appendChild(m);requestAnimationFrame(function(){m.classList.add("open")});
+  function close(){m.classList.remove("open");setTimeout(function(){m.remove()},200)}
+  m.querySelector(".mm-back").onclick=close;
+  m.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){close();setTab(b.dataset.go)}});
+}
 function setTab(k,keepSel){
   if(k!=="mapa"&&dOpen)closeDiary();
   if(dirty)saveDraft(true);
@@ -338,6 +353,7 @@ function setTab(k,keepSel){
 }
 function setHash(h){try{history.replaceState(null,"",h?"#"+h:location.pathname+location.search)}catch(e){location.hash=h}}
 function renderView(){
+  var tb=document.querySelector("nav.tabbar");if(tb){tb.innerHTML=tabbarHTML();bindTabbar();updateNavBadge();updateFeedBadge();updatePostBadge()}
   document.querySelectorAll("[data-tab]").forEach(function(b){b.classList.toggle("on",b.dataset.tab===ui.tab)});
   if(ui.tab==="lt")viewLT();else if(ui.tab==="racoes")viewFeed();else if(ui.tab==="transf")viewTransfers();else if(ui.tab==="fichas")viewFichas();else if(ui.tab==="posturas")viewPosturas();else viewMap();
 }

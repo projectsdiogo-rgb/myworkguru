@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261126074559">
+<link rel="modulepreload" href="app.js?v=20261126075134">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -641,9 +641,6 @@ nav.sections button:not(.nav-main){font-size:14px}
 .esave{position:sticky;bottom:-1px;background:var(--surface);padding:10px 0 4px;margin-top:8px}
 
 /* v23 separador Posturas */
-.tabbar .tb-side{flex:1;display:flex;min-width:0}
-.tabbar .tb-main{flex:0 0 70px!important}
-.tabbar .tb-side button{flex:1;min-width:0}
 .tabbar .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .nbadge.spawnb{background:var(--spawn);color:#fff}
 .sbadge.static{position:static;box-shadow:none}.sbadge.static::after{display:none}
@@ -662,11 +659,30 @@ nav.sections button:not(.nav-main){font-size:14px}
 .btn.sm{padding:7px 11px;font-size:13px}
 @media (max-width:520px){.pstable{table-layout:fixed;width:100%}.pstable th,.pstable td{overflow:hidden;text-overflow:ellipsis;padding-left:6px!important;padding-right:6px!important;font-size:13px}.pstable th{font-size:10.5px}}
 .pstable td.good b,.pstable td.mid b,.pstable td.bad b{color:inherit}
+
+/* v24 barra do telemóvel: 5 lugares iguais + menu Mais */
+@media (max-width:900px){
+  .tabbar{padding:4px 4px calc(6px + var(--safe-b))}
+  .tabbar>button{flex:1 1 0!important;min-width:0}
+  .tabbar .tb-main .tl{font-weight:700}
+  .tabbar .tb-more{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11.5px;font-weight:600;color:var(--muted);border-radius:10px;font-family:inherit}
+  .tabbar .tb-more.on{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+}
+#moremenu{position:fixed;inset:0;z-index:80}
+#moremenu .mm-back{position:absolute;inset:0;background:rgba(5,12,18,.35);opacity:0;transition:opacity .2s}
+#moremenu .mm-sheet{position:absolute;left:8px;right:8px;bottom:calc(78px + var(--safe-b));background:var(--surface);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:8px;transform:translateY(16px);opacity:0;transition:transform .2s,opacity .2s}
+#moremenu.open .mm-back{opacity:1}#moremenu.open .mm-sheet{transform:none;opacity:1}
+.mm-grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:2px auto 6px}
+.mm-item{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:var(--text);text-align:left;padding:12px 10px;border-radius:12px;font:inherit;cursor:pointer}
+.mm-item:hover,.mm-item.on{background:var(--surface2)}
+.mm-ic{width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent);display:grid;place-items:center;flex:none}
+.mm-tx{flex:1;min-width:0}.mm-tx b{display:block;font-size:15.5px}.mm-tx small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
+.mm-item>svg{color:var(--muted)}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261126074559"></script>
+<script type="module" src="app.js?v=20261126075134"></script>
 </body>
 </html>
