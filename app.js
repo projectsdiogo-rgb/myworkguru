@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126065603";
+var APP_VERSION="20261126070848";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -21,7 +21,7 @@ var TABS=[
   ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
-var histOpenFor=null; /* histórico do tanque fechado por defeito; fica aberto só enquanto se mexe nesse tanque */
+var histOpenFor=null,treatHistOpen=false; /* histórico do tanque fechado por defeito; fica aberto só enquanto se mexe nesse tanque */
 /* O Mapa é o separador principal: no telemóvel fica ao centro da barra; no PC em primeiro e em destaque. */
 var TABBAR_ORDER=["lt","transf","mapa","fichas","racoes"];
 var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
@@ -648,16 +648,18 @@ function viewTreat(){
   var prods={};hist.forEach(function(h){prods[h.t.product]=1});
   var hf=hist.filter(function(h){return !hFilter||h.t.product===hFilter});
   var html='<div class="section-title big">Tratamentos<button class="btn ghost sm" id="go-treat" style="margin-left:auto">Ir para o mapa →</button></div>'+
-    '<div class="section-title" style="margin-top:4px">Histórico<span>'+hist.length+'</span></div>';
+    '<details class="histd" id="thistd"'+(treatHistOpen?' open':'')+'><summary><span>Histórico de tratamentos</span><b>'+hist.length+'</b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>';
   if(hist.length){
     html+='<div class="fchips"><button class="chip'+(hFilter?'':' on')+'" data-hf="">Todos</button>'+Object.keys(prods).sort().map(function(p){return '<button class="chip'+(hFilter===p?' on':'')+'" data-hf="'+esc(p)+'">'+esc(p)+'</button>'}).join("")+'</div>'+
      '<table class="htable"><thead><tr><th>Data</th><th>Tanque</th><th>Produto</th><th class="hide-m">Água</th></tr></thead><tbody>'+
      hf.slice(0,80).map(function(h){var x=h.t,late=x.waterOnAt&&x.waterUntil?Math.round((x.waterOnAt-x.waterUntil)/60000):0;
        return '<tr><td>'+fmtShort(x.start)+'</td><td class="tk">'+esc(BYID[h.id].label)+'</td><td>'+esc(x.product)+(x.dose?'<div class="sub">'+esc(x.dose)+'</div>':'')+(x.notes?'<div class="sub">'+esc(x.notes)+'</div>':'')+'</td><td class="hide-m">'+(x.waterMin?x.waterMin+' min'+(x.waterOnAt?'<div class="sub">ligada '+hhmm(x.waterOnAt)+(late>1?' (+'+late+' min)':'')+'</div>':''):'—')+'</td></tr>'}).join("")+'</tbody></table>';
   }else html+='<p class="empty">Ainda não há tratamentos registados.</p>';
+  html+='</details>';
   html+='<div class="section-title">Produtos</div><p class="hint" style="margin-top:-4px">Minutos de paragem de água propostos por defeito.</p><div class="fchips">'+
     P.map(function(p,i){return '<span class="pchip">'+esc(p.name)+' · <input data-pw="'+i+'" type="number" min="0" max="1440" inputmode="numeric" value="'+(p.water||0)+'" style="width:52px;border:1px solid var(--line);border-radius:7px;padding:2px 4px;background:var(--bg)"> min'+(isDefaultProduct(p.name)?'':'<button class="linkbtn" data-pdel="'+i+'" style="padding:0 0 0 4px;text-decoration:none" title="Remover">×</button>')+'</span>'}).join("")+'</div>';
   v.innerHTML=html;
+  $("thistd").addEventListener("toggle",function(){treatHistOpen=this.open});
   $("go-treat").onclick=goMap;
   v.querySelectorAll("[data-hf]").forEach(function(b){b.onclick=function(){hFilter=b.dataset.hf||null;viewTreat()}});
   v.querySelectorAll("[data-pw]").forEach(function(inp){inp.onchange=function(){var p=products()[+inp.dataset.pw];p.water=Math.max(0,Math.min(1440,parseInt(inp.value,10)||0));persist(p.name+": "+p.water+" min por defeito")}});
