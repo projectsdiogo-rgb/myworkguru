@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126075134";
+var APP_VERSION="20261126075649";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -306,8 +306,12 @@ function spawnDays(sp){return Math.max(0,Math.floor((Date.now()-sp.since)/864e5)
 function spawnBadge(id){var sp=spawnOf(id);if(!sp)return"";var n=spawnDays(sp);return '<span class="sbadge" title="Desova / posturas desde '+fmt(sp.since)+(sp.note?' — '+esc(sp.note):'')+'">'+EGG_ICON+(n?'<span>'+n+'d</span>':'')+'</span>'}
 function spawnCount(){return TANKS.filter(function(t){return spawnOf(t.id)}).length}
 function startSpawn(id,when,note){var td=tankData(id);td.spawn={since:when,note:note||"",by:me?me.name:""};td.updatedAt=Date.now();logTo(td,"Desova / posturas assinaladas"+(note?": "+note:"")+(Math.abs(Date.now()-when)>36e5?" (desde "+fmt(when)+")":""));persist(BYID[id].label+": desova assinalada");refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
-function endSpawn(id){var td=tankData(id),sp=td.spawn;if(!sp)return;td.spawns=(td.spawns||[]).concat([{start:sp.since,end:Date.now(),note:sp.note||""}]).slice(-30);delete td.spawn;td.updatedAt=Date.now();
-  logTo(td,"Desova terminada ("+(spawnDays(sp)+1)+(spawnDays(sp)?" dias":" dia")+")");persist(BYID[id].label+": desova terminada",{label:"Anular",fn:function(){var t2=tankData(id);t2.spawn=sp;t2.spawns=(t2.spawns||[]).slice(0,-1);persist(null);refreshTank(id);renderPanel();if(ui.tab==="posturas")viewPosturas()}});refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
+/* Recolhas com dados (viáveis, contagens, etc.) feitas entre duas datas */
+function lotHasData(l){return l&&(l.epg!=null||l.gV!=null||l.gI!=null||l.gInc!=null||(l.ecl&&l.ecl.counts&&l.ecl.counts.length)||(l.sob&&l.sob.counts&&l.sob.counts.length))}
+function lotsBetween(id,a,b){return (peek(id).eggLots||[]).filter(function(l){return l.t>=a-36e5&&l.t<=b+36e5&&lotHasData(l)})}
+function endSpawn(id){var td=tankData(id),sp=td.spawn;if(!sp)return;var now=Date.now(),hasData=lotsBetween(id,sp.since,now).length>0;
+  if(hasData)td.spawns=(td.spawns||[]).concat([{start:sp.since,end:now,note:sp.note||""}]).slice(-30);delete td.spawn;td.updatedAt=Date.now();
+  logTo(td,"Desova terminada ("+(spawnDays(sp)+1)+(spawnDays(sp)?" dias":" dia")+")"+(hasData?"":" — sem recolhas registadas, não fica no histórico de desovas"));persist(BYID[id].label+": desova terminada"+(hasData?"":" (sem recolhas — não fica no histórico)"),{label:"Anular",fn:function(){var t2=tankData(id);t2.spawn=sp;if(hasData)t2.spawns=(t2.spawns||[]).slice(0,-1);persist(null);refreshTank(id);renderPanel();if(ui.tab==="posturas")viewPosturas()}});refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
 function badgeHTML(id){var t=activeTreat(id);if(!t)return"";var late=isLate(t);return '<span class="tbadge'+(late?' late':'')+'" data-lt="'+id+'" title="'+esc(t.product)+' — água desligada"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M4 4l16 16"/></svg><span data-cd="'+id+'">'+(late?"Ligar!":fmtDur(t.waterUntil-Date.now()))+'</span></span>'}
 
 /* ================= Shell ================= */
@@ -523,7 +527,7 @@ function renderPanel(){
       '<div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn green" id="t-on" style="flex:1">Água ligada</button><button class="btn ghost" id="t-cancel">Cancelar</button></div>'+
       '<a class="linkbtn" href="'+gcalLink([id],at)+'" target="_blank" rel="noopener">Lembrete no Google Calendar</a></div>';
   }else treatBox+='<div style="margin-bottom:18px"><button class="btn purple" id="t-new">+ Novo tratamento</button><div class="meta" style="margin-top:6px">'+(lastT?'Último: '+esc(lastT.product)+' · '+fmt(lastT.start):'Sem tratamentos registados')+'</div></div>';
-  var sp=spawnOf(id),lastSp=(d.spawns||[]).slice(-1)[0],spawnBox='';
+  var sp=spawnOf(id),lastSp=(d.spawns||[]).filter(function(x){return lotsBetween(id,x.start,x.end).length}).slice(-1)[0],spawnBox='';
   if(d.status!=="empty"||sp){
     spawnBox='<span class="lbl">Desova / posturas</span>';
     if(sp)spawnBox+='<div class="spawnbox"><div class="ct">'+EGG_ICON.replace('width="12" height="12"','width="18" height="18"')+' Há posturas / ovos</div><div class="cm">Desde '+fmt(sp.since)+' · '+(spawnDays(sp)?spawnDays(sp)+(spawnDays(sp)===1?' dia':' dias'):'hoje')+(sp.by?' · por '+esc(sp.by):'')+'</div>'+(sp.note?'<div class="cm" style="color:var(--text)">'+esc(sp.note)+'</div>':'')+
@@ -1135,7 +1139,7 @@ function pct0(v){return v!=null?nf(v,0)+"%":"—"}
 function updatePostBadge(){var n=spawnCount();document.querySelectorAll(".nbadge[data-ns]").forEach(function(b){b.textContent=n;b.style.display=n?"":"none"})}
 function viewPosturas(){
   var v=$("view"),S=spawningTanks(),A=allEggLots();
-  var H=[];TANKS.forEach(function(t){(peek(t.id).spawns||[]).forEach(function(s){H.push({id:t.id,s:s})})});H.sort(function(a,b){return b.s.end-a.s.end});
+  var H=[];TANKS.forEach(function(t){(peek(t.id).spawns||[]).forEach(function(s){var L=lotsBetween(t.id,s.start,s.end);if(L.length)H.push({id:t.id,s:s,L:L})})});H.sort(function(a,b){return b.s.end-a.s.end});
   var html='<div class="pagehead"><div><h1>Posturas</h1><p>Tanques com desova, recolhas de ovos e as taxas de viabilidade, eclosão e sobrevivência.</p></div>'+(readOnly?'':'<button class="btn spawn" id="ps-new">'+EGG_ICON.replace('width="12" height="12"','width="16" height="16"')+' Assinalar desova</button>')+'</div>';
   html+='<div class="section-title big">Em desova agora<span>'+S.length+'</span></div>';
   if(!S.length)html+='<div class="ps-empty">'+EGG_ICON.replace('width="12" height="12"','width="40" height="40"')+'<p>Nenhum tanque com posturas neste momento.</p><p class="hint" style="margin:0">Assinale uma desova aqui ou no painel do tanque, no Mapa.</p></div>';
@@ -1153,7 +1157,9 @@ function viewPosturas(){
     A.slice(0,60).map(function(x){var c=eggCalc(x.l);return '<tr data-plot="'+x.id+'|'+x.l.id+'" style="cursor:pointer"><td>'+new Date(x.l.t).toLocaleDateString("pt-PT",{day:"2-digit",month:"short",year:"2-digit"})+'</td><td class="tk">'+esc(BYID[x.id].label)+'</td><td class="hide-m">'+esc(x.l.phase||"—")+'</td>'+
       '<td style="text-align:right" class="'+rateCls(c.viab,70,50)+'"><b>'+pct0(c.viab)+'</b></td><td style="text-align:right" class="'+rateCls(c.tEcl,70,40)+'"><b>'+pct0(c.tEcl)+'</b></td><td style="text-align:right" class="'+rateCls(c.tSob,60,30)+'"><b>'+pct0(c.tSob)+'</b></td></tr>'}).join("")+'</tbody></table>';
   html+='<details class="histd" id="pshist" style="margin-top:18px"'+(postHistOpen?' open':'')+'><summary><span>Desovas terminadas</span><b>'+H.length+'</b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>'+
-    (H.length?'<table class="htable"><thead><tr><th>Tanque</th><th>Início</th><th>Fim</th><th style="text-align:right">Dias</th></tr></thead><tbody>'+H.slice(0,80).map(function(h){return '<tr><td class="tk">'+esc(BYID[h.id].label)+(h.s.note?'<div class="sub">'+esc(h.s.note)+'</div>':'')+'</td><td>'+new Date(h.s.start).toLocaleDateString("pt-PT")+'</td><td>'+new Date(h.s.end).toLocaleDateString("pt-PT")+'</td><td style="text-align:right">'+(Math.floor((h.s.end-h.s.start)/864e5)+1)+'</td></tr>'}).join("")+'</tbody></table>':'<p class="empty">Ainda não há desovas terminadas.</p>')+'</details>';
+    (H.length?'<table class="htable pstable"><thead><tr><th>Tanque</th><th>Período</th><th style="text-align:right">Recolhas</th><th style="text-align:right">Viáveis</th><th style="text-align:right">Eclosão</th></tr></thead><tbody>'+H.slice(0,80).map(function(h){
+      var C=h.L.map(eggCalc),avg=function(k){var v=C.map(function(c){return c[k]}).filter(function(x){return x!=null});return v.length?v.reduce(function(a,b){return a+b},0)/v.length:null},vi=avg("viab"),ec=avg("tEcl");
+      return '<tr><td class="tk">'+esc(BYID[h.id].label)+(h.s.note?'<div class="sub">'+esc(h.s.note)+'</div>':'')+'</td><td>'+new Date(h.s.start).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit"})+' – '+new Date(h.s.end).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"2-digit"})+'<div class="sub">'+(function(n){return n+(n===1?' dia':' dias')})(Math.floor((h.s.end-h.s.start)/864e5)+1)+'</div></td><td style="text-align:right">'+h.L.length+'</td><td style="text-align:right" class="'+rateCls(vi,70,50)+'"><b>'+pct0(vi)+'</b></td><td style="text-align:right" class="'+rateCls(ec,70,40)+'"><b>'+pct0(ec)+'</b></td></tr>'}).join("")+'</tbody></table><p class="hint" style="margin:8px 0 0">Só aparecem desovas com recolhas de ovos registadas. Taxas = média das recolhas.</p>':'<p class="empty">Ainda não há desovas terminadas com recolhas registadas.</p>')+'</details>';
   v.innerHTML=html;
   if($("ps-new"))$("ps-new").onclick=openNewSpawn;
   v.querySelectorAll("[data-pnew]").forEach(function(b){b.onclick=function(){openEggLot(b.dataset.pnew,null)}});
