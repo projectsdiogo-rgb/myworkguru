@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126075649";
+var APP_VERSION="20261126080407";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1168,7 +1168,26 @@ function viewPosturas(){
   v.querySelectorAll("[data-pmap]").forEach(function(b){b.onclick=function(){select(b.dataset.pmap)}});
   v.querySelectorAll("[data-plot]").forEach(function(r){r.onclick=function(){var p=r.dataset.plot.split("|");openEggLot(p[0],p[1])}});
   $("pshist").addEventListener("toggle",function(){postHistOpen=this.open});
+  if(isAdminUser){var cl=document.createElement("div");cl.className="ps-admin";cl.innerHTML='<button class="linkbtn" id="ps-clear">Apagar dados de desova (administrador)…</button>';v.appendChild(cl);$("ps-clear").onclick=openClearSpawn}
   updatePostBadge();
+}
+/* Só o administrador: apagar dados de teste das desovas */
+function openClearSpawn(){
+  var nH=0,nL=0,nA=0;TANKS.forEach(function(t){var d=peek(t.id);nH+=(d.spawns||[]).length;nL+=(d.eggLots||[]).length;if(spawnOf(t.id))nA++});
+  function ck(idc,label,n,on){return '<label class="check" style="padding:10px 0;border-bottom:1px solid var(--line)"><input type="checkbox" id="'+idc+'"'+(on&&n?' checked':'')+(n?'':' disabled')+'> <span style="flex:1">'+label+'</span><b>'+n+'</b></label>'}
+  openSheet("Apagar dados de desova","Útil para limpar registos de teste. Afeta todos os tanques.",
+    ck("cl-h","Histórico de desovas terminadas",nH,true)+ck("cl-l","Recolhas de ovos (viabilidade, eclosão, sobrevivência)",nL,true)+ck("cl-a","Desovas ativas (tira o símbolo do mapa)",nA,false)+
+    '<button class="btn" id="cl-go" style="width:100%;margin-top:14px;background:var(--alert)">Apagar selecionados</button><p class="hint" style="margin:8px 0 0">Pode anular logo a seguir no aviso que aparece.</p>',function(){
+    $("cl-go").onclick=function(){
+      var h=$("cl-h").checked,l=$("cl-l").checked,a=$("cl-a").checked;if(!h&&!l&&!a){toast("Escolha o que apagar");return}
+      var b=this;if(!b.dataset.c){b.dataset.c=1;b.textContent="Tocar outra vez para confirmar";return}
+      var backup={};TANKS.forEach(function(t){var d=state.tanks[t.id];if(!d)return;backup[t.id]={spawns:d.spawns,eggLots:d.eggLots,spawn:d.spawn};
+        if(h)delete d.spawns;if(l)delete d.eggLots;if(a)delete d.spawn});
+      closeSheet();
+      persist("Dados de desova apagados",{label:"Anular",fn:function(){Object.keys(backup).forEach(function(id){var d=tankData(id),o=backup[id];["spawns","eggLots","spawn"].forEach(function(k){if(o[k]!==undefined)d[k]=o[k]})});persist(null);refreshAll();TANKS.forEach(function(t){refreshTank(t.id)})}});
+      refreshAll();TANKS.forEach(function(t){refreshTank(t.id)});
+    };
+  });
 }
 function spawnFormHtml(sp,withTank){
   var opts=withTank?TANKS.filter(function(t){return !spawnOf(t.id)&&peek(t.id).status!=="empty"}).sort(natural):[];
