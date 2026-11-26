@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126072106";
+var APP_VERSION="20261126072816";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -506,10 +506,11 @@ function renderPanel(){
   if(d.status!=="empty"||sp){
     spawnBox='<span class="lbl">Desova / posturas</span>';
     if(sp)spawnBox+='<div class="spawnbox"><div class="ct">'+EGG_ICON.replace('width="12" height="12"','width="18" height="18"')+' Há posturas / ovos</div><div class="cm">Desde '+fmt(sp.since)+' · '+(spawnDays(sp)?spawnDays(sp)+(spawnDays(sp)===1?' dia':' dias'):'hoje')+(sp.by?' · por '+esc(sp.by):'')+'</div>'+(sp.note?'<div class="cm" style="color:var(--text)">'+esc(sp.note)+'</div>':'')+
-      '<button class="btn ghost" id="sp-end">Terminou a desova</button></div>';
+      '<div class="row" style="flex-wrap:wrap"><button class="btn spawn" id="sp-lots" style="flex:1;justify-content:center">Recolhas de ovos e taxas'+((d.eggLots||[]).length?' ('+d.eggLots.length+')':'')+'</button><button class="btn ghost" id="sp-end">Terminou a desova</button></div></div>';
     else spawnBox+='<div style="margin-bottom:18px"><button class="btn spawn" id="sp-new">'+EGG_ICON.replace('width="12" height="12"','width="16" height="16"')+' Assinalar desova</button>'+
       '<div id="sp-form" class="sp-form" hidden><div class="formgrid"><div class="field"><label class="lbl" for="sp-when">Desde</label><input id="sp-when" type="datetime-local" value="'+localDT(Date.now())+'" max="'+localDT(Date.now()+60000)+'"></div>'+
       '<div class="field"><label class="lbl" for="sp-note">Nota (opcional)</label><input id="sp-note" maxlength="80" placeholder="Ex.: ovos flutuantes, ~200 ml"></div></div><div class="row"><button class="btn spawn" id="sp-ok" style="flex:1">Confirmar</button><button class="btn ghost" id="sp-cancel">Cancelar</button></div></div>'+
+      ((d.eggLots||[]).length?'<button class="linkbtn" id="sp-lots" style="display:block;margin-top:8px">Ver recolhas de ovos ('+d.eggLots.length+')</button>':'')+
       '<div class="meta" style="margin-top:6px">'+(lastSp?'Última: '+new Date(lastSp.start).toLocaleDateString("pt-PT")+' a '+new Date(lastSp.end).toLocaleDateString("pt-PT"):'Sem desovas registadas')+'</div></div>';
   }
   slot.innerHTML=(isMobile()?'<div class="sheet-backdrop" id="bd"></div>':'')+
@@ -550,6 +551,7 @@ function renderPanel(){
   if($("sp-new"))$("sp-new").onclick=function(){if(readOnly){toast("Só leitura — não tem permissão para alterar");return}this.hidden=true;$("sp-form").hidden=false};
   if($("sp-cancel"))$("sp-cancel").onclick=function(){$("sp-form").hidden=true;$("sp-new").hidden=false};
   if($("sp-ok"))$("sp-ok").onclick=function(){var v=$("sp-when").value,w=v?new Date(v).getTime():Date.now();if(!(w>0))w=Date.now();if(w>Date.now()+60000){toast("A data não pode ser no futuro");return}captureDraft(tankData(id));startSpawn(id,w,$("sp-note").value.trim())};
+  if($("sp-lots"))$("sp-lots").onclick=function(){captureDraft(tankData(id));openEggLots(id)};
   if($("sp-end"))$("sp-end").onclick=function(){if(readOnly){toast("Só leitura — não tem permissão para alterar");return}captureDraft(tankData(id));endSpawn(id)};
   if($("x-from-panel"))$("x-from-panel").onclick=function(){captureDraft(tankData(id));openTransfer(id)};
   if($("fi-from-panel"))$("fi-from-panel").onclick=function(){captureDraft(tankData(id));openFicha(id)};
@@ -981,6 +983,126 @@ function showTransfer(id){
     '<div class="row" style="margin-top:14px">'+(BYID[x.from]?'<button class="btn ghost" data-go="'+x.from+'">Ver '+esc(BYID[x.from].label)+'</button>':'')+(BYID[x.to]?'<button class="btn ghost" data-go="'+x.to+'">Ver '+esc(BYID[x.to].label)+'</button>':'')+'<button class="btn ghost" id="x-del" style="margin-left:auto">Apagar</button></div>',function(m){
     m.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){closeSheet();select(b.dataset.go)}});
     $("x-del").onclick=function(){var b=$("x-del");if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar apagar";b.className="btn danger";return}closeSheet();deleteTransfer(id)};
+  });
+}
+
+/* ================= Recolhas de ovos: viabilidade, incubação, taxa de eclosão e sobrevivência =================
+   Guardado no próprio tanque: tankData.eggLots = [{id,t,phase,epg,gV,gI,gInc,tTank,tInc,volH2O2,
+     ecl:{vol,counts:[]}, sob:{mouth,vol,counts:[]}, notes, by, upd}] (máx. 100). Segue o protocolo da equipa. */
+var EGG_PHASES=["Mórula","Blástula","Gástrula","Embrião formado","Pré-eclosão"];
+function eggLots(id){return (peek(id).eggLots||[]).slice().sort(function(a,b){return b.t-a.t})}
+function nf(v,d){return v==null||!isFinite(v)?"—":(+v).toLocaleString("pt-PT",{maximumFractionDigits:d==null?1:d})}
+function parseCounts(s){return String(s||"").split(/[\s;,]+/).map(function(x){return parseFloat(x.replace(",","."))}).filter(function(x){return isFinite(x)&&x>=0})}
+function meanOf(a){return a.length?a.reduce(function(s,x){return s+x},0)/a.length:null}
+/* Todos os cálculos do protocolo num só sítio */
+function eggCalc(L){
+  var r={},n=function(v){return v==null||v===""?null:+v};
+  var epg=n(L.epg),gV=n(L.gV),gI=n(L.gI),gInc=n(L.gInc)!=null?n(L.gInc):gV;
+  r.gTot=gV!=null||gI!=null?(gV||0)+(gI||0):null;
+  r.viab=r.gTot?(gV||0)/r.gTot*100:null;
+  r.ovosV=epg!=null&&gV!=null?epg*gV:null;
+  r.gInc=gInc;
+  r.esperadas=epg!=null&&gInc!=null?epg*gInc:null;
+  r.dT=n(L.tTank)!=null&&n(L.tInc)!=null?Math.abs(n(L.tInc)-n(L.tTank)):null;
+  r.aclimatar=r.dT!=null&&r.dT>=0.5;
+  r.h2o2=n(L.volH2O2)!=null?n(L.volH2O2)*1:null;
+  var e=L.ecl||{},ec=e.counts||[];r.eN=ec.length;r.eMean=meanOf(ec);
+  r.eclodidas=r.eMean!=null&&n(e.vol)!=null?r.eMean*n(e.vol)*1000:null;
+  r.tEcl=r.eclodidas!=null&&r.esperadas?r.eclodidas/r.esperadas*100:null;
+  var s=L.sob||{},sc=s.counts||[];r.sN=sc.length;r.sMean=meanOf(sc);
+  r.larvas=r.sMean!=null&&n(s.vol)!=null?r.sMean*n(s.vol)*1000:null;
+  r.tSob=r.larvas!=null&&r.eclodidas?r.larvas/r.eclodidas*100:null;
+  return r;
+}
+function rateCls(v,good,ok){return v==null?"":v>=good?" good":v>=ok?" mid":" bad"}
+function openEggLots(id){
+  var L=eggLots(id),t=BYID[id];
+  var body='<p class="hint" style="margin-top:0">Cada recolha segue o protocolo: viabilidade → incubação → taxa de eclosão → sobrevivência até à abertura da boca. Introduza os valores e a app faz as contas.</p>'+
+    (readOnly?'':'<button class="btn spawn" id="el-new" style="width:100%;justify-content:center">'+EGG_ICON.replace('width="12" height="12"','width="16" height="16"')+' Nova recolha de ovos</button>')+
+    (L.length?'<div class="el-list">'+L.map(function(x){var c=eggCalc(x);
+      return '<button class="el-item" data-el="'+x.id+'"><div class="el-d"><b>'+new Date(x.t).toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+'</b><span>'+esc(x.phase||"")+'</span></div>'+
+        '<div class="el-k"><span>Viáveis</span><b class="'+rateCls(c.viab,70,50)+'">'+(c.viab!=null?nf(c.viab,0)+'%':'—')+'</b></div>'+
+        '<div class="el-k"><span>Eclosão</span><b class="'+rateCls(c.tEcl,70,40)+'">'+(c.tEcl!=null?nf(c.tEcl,0)+'%':'—')+'</b></div>'+
+        '<div class="el-k"><span>Sobrev.</span><b class="'+rateCls(c.tSob,60,30)+'">'+(c.tSob!=null?nf(c.tSob,0)+'%':'—')+'</b></div></button>'}).join("")+'</div>'
+      :'<p class="empty">Ainda não há recolhas registadas neste tanque.</p>');
+  openSheet("Recolhas de ovos · "+esc(t.label),L.length?L.length+(L.length===1?" recolha":" recolhas"):"",body,function(m){
+    if($("el-new"))$("el-new").onclick=function(){openEggLot(id,null)};
+    m.querySelectorAll("[data-el]").forEach(function(b){b.onclick=function(){openEggLot(id,b.dataset.el)}});
+  });
+}
+function openEggLot(id,lid){
+  var td=tankData(id),isNew=!lid,L=isNew?{id:newId("e"),t:Date.now(),ecl:{counts:[]},sob:{counts:[]}}:clean((td.eggLots||[]).filter(function(x){return x.id===lid})[0]||{});
+  if(!L.id){toast("Recolha não encontrada");return}
+  L.ecl=L.ecl||{counts:[]};L.sob=L.sob||{counts:[]};
+  function v(x){return x==null?"":String(x).replace(".",",")}
+  function F(idf,label,val,unit,ph){return '<div class="field"><label class="lbl" for="'+idf+'">'+label+(unit?' <small>('+unit+')</small>':'')+'</label><input id="'+idf+'" inputmode="decimal" autocomplete="off" value="'+v(val)+'"'+(ph?' placeholder="'+ph+'"':'')+'></div>'}
+  function R(idr,label){return '<div class="er"><span>'+label+'</span><b id="'+idr+'">—</b></div>'}
+  var body='<div class="eggform">'+
+    '<details class="estep" open><summary><i>1</i>Recolha e viabilidade</summary><div class="formgrid">'+
+      '<div class="field"><label class="lbl" for="e-date">Data da recolha</label><input id="e-date" type="datetime-local" value="'+localDT(L.t)+'" max="'+localDT(Date.now()+60000)+'"></div>'+
+      '<div class="field"><label class="lbl" for="e-phase">Fase de desenvolvimento</label><input id="e-phase" list="e-phases" maxlength="40" value="'+esc(L.phase||"")+'" placeholder="Ex.: Gástrula"><datalist id="e-phases">'+EGG_PHASES.map(function(p){return '<option value="'+p+'">'}).join("")+'</datalist></div>'+
+      F("e-epg","Ovos em 1 g",L.epg,"contagem","Ex.: 1500")+F("e-gv","Ovos viáveis",L.gV,"g")+F("e-gi","Ovos inviáveis",L.gI,"g")+
+    '</div><div class="eres">'+R("r-viab","Viabilidade")+R("r-ovosv","Nº estimado de ovos viáveis")+'</div></details>'+
+    '<details class="estep"'+(isNew?'':' open')+'><summary><i>2</i>Incubação e desinfeção</summary><div class="formgrid">'+
+      F("e-ginc","Ovos incubados",L.gInc,"g","= viáveis")+F("e-vol2","Água para desinfeção",L.volH2O2,"L")+
+      F("e-ttank","Temperatura do tanque",L.tTank,"°C")+F("e-tinc","Temperatura da incubadora",L.tInc,"°C")+
+    '</div><div class="eres">'+R("r-h2o2","H₂O₂ a usar (1 mL por litro)")+R("r-dt","Diferença de temperatura")+R("r-esp","Larvas esperadas após eclosão")+'</div>'+
+    '<div class="ewarn" id="r-acl" hidden>⚠️ Diferença ≥ 0,5 °C: aclimatar os ovos à incubadora antes de os colocar.</div>'+
+    '<p class="hint">Agitar suavemente e trocar a água (90–110 s). Lavar 3 a 4 vezes e colocar os ovos com cuidado na incubadora.</p></details>'+
+    '<details class="estep"'+(L.ecl.counts.length?' open':'')+'><summary><i>3</i>Taxa de eclosão</summary><div class="formgrid">'+
+      F("e-evol","Volume do balde",L.ecl.vol,"L")+
+      '<div class="field full"><label class="lbl" for="e-ecnt">Contagens das pipetagens de 1 mL <small>(15 a 20, separadas por espaço)</small></label><textarea id="e-ecnt" inputmode="decimal" style="min-height:64px" placeholder="Ex.: 12 9 14 11 10 …">'+L.ecl.counts.join(" ")+'</textarea></div>'+
+    '</div><div class="eres">'+R("r-en","Pipetagens · média por mL")+R("r-ecl","Total de larvas eclodidas")+'<div class="er big"><span>Taxa de eclosão</span><b id="r-tecl">—</b></div></div></details>'+
+    '<details class="estep"'+(L.sob.counts.length?' open':'')+'><summary><i>4</i>Sobrevivência até abertura da boca</summary>'+
+      '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="e-mouth"'+(L.sob.mouth?' checked':'')+'> Abertura da boca verificada à lupa</label><div class="formgrid">'+
+      F("e-svol","Volume do balde",L.sob.vol,"L")+
+      '<div class="field full"><label class="lbl" for="e-scnt">Contagens das pipetagens de 1 mL <small>(15 a 20)</small></label><textarea id="e-scnt" inputmode="decimal" style="min-height:64px" placeholder="Ex.: 8 7 10 9 …">'+L.sob.counts.join(" ")+'</textarea></div>'+
+    '</div><div class="eres">'+R("r-sn","Pipetagens · média por mL")+R("r-lar","Total de larvas")+'<div class="er big"><span>Taxa de sobrevivência</span><b id="r-tsob">—</b></div></div></details>'+
+    '<div class="field" style="margin-top:12px"><label class="lbl" for="e-notes">Notas</label><textarea id="e-notes" maxlength="300" style="min-height:56px">'+esc(L.notes||"")+'</textarea></div>'+
+    (readOnly?'':'<div class="row esave"><button class="btn" id="e-save" style="flex:1">Guardar recolha</button>'+(isNew?'':'<button class="btn ghost" id="e-del">Apagar</button>')+'</div>')+
+    '<details class="eproto"><summary>Ver fórmulas usadas</summary><ul>'+
+      '<li><b>Viabilidade</b> = g viáveis ÷ (g viáveis + g inviáveis) × 100</li>'+
+      '<li><b>Larvas esperadas</b> = ovos em 1 g × g de ovos incubados</li>'+
+      '<li><b>Larvas eclodidas</b> = média das pipetagens (por mL) × volume do balde (mL)</li>'+
+      '<li><b>Taxa de eclosão</b> = larvas eclodidas ÷ larvas esperadas × 100</li>'+
+      '<li><b>Total de larvas</b> = média das pipetagens × volume do balde (mL)</li>'+
+      '<li><b>Taxa de sobrevivência</b> = total de larvas ÷ larvas eclodidas × 100</li>'+
+      '<li><b>H₂O₂</b> = 1 mL por cada litro de água</li></ul></details></div>';
+  openSheet((isNew?"Nova recolha":"Recolha")+" · "+esc(BYID[id].label),"Protocolo de recolha de ovos",body,function(m){
+    if(readOnly)m.querySelectorAll("input,textarea").forEach(function(i){i.disabled=true});
+    function num(idf){var el=$(idf);if(!el)return null;var s=String(el.value).replace(",",".").trim();if(s==="")return null;var x=parseFloat(s);return isFinite(x)?x:null}
+    function read(){
+      var d=$("e-date").value;L.t=d?new Date(d).getTime()||L.t:L.t;L.phase=$("e-phase").value.trim();
+      L.epg=num("e-epg");L.gV=num("e-gv");L.gI=num("e-gi");L.gInc=num("e-ginc");L.volH2O2=num("e-vol2");L.tTank=num("e-ttank");L.tInc=num("e-tinc");
+      L.ecl={vol:num("e-evol"),counts:parseCounts($("e-ecnt").value)};
+      L.sob={mouth:$("e-mouth").checked,vol:num("e-svol"),counts:parseCounts($("e-scnt").value)};
+      L.notes=$("e-notes").value.trim();
+    }
+    function show(){
+      read();var c=eggCalc(L);
+      function set(idr,txt,cls){var el=$(idr);if(el){el.textContent=txt;el.className=cls||""}}
+      set("r-viab",c.viab!=null?nf(c.viab,1)+" %":"—",rateCls(c.viab,70,50));
+      set("r-ovosv",c.ovosV!=null?nf(Math.round(c.ovosV),0)+" ovos":"—");
+      set("r-h2o2",c.h2o2!=null?nf(c.h2o2,1)+" mL":"—");
+      set("r-dt",c.dT!=null?nf(c.dT,1)+" °C":"—",c.dT==null?"":c.aclimatar?"bad":"good");
+      $("r-acl").hidden=!c.aclimatar;
+      set("r-esp",c.esperadas!=null?nf(Math.round(c.esperadas),0)+" larvas"+(L.gInc==null&&L.gV!=null?" (com os g viáveis)":""):"—");
+      set("r-en",c.eN?c.eN+" · "+nf(c.eMean,2)+" larvas/mL"+(c.eN<15?" (faltam "+(15-c.eN)+")":""):"—");
+      set("r-ecl",c.eclodidas!=null?nf(Math.round(c.eclodidas),0)+" larvas":"—");
+      set("r-tecl",c.tEcl!=null?nf(c.tEcl,1)+" %":(c.eclodidas!=null?"falta ovos/g e g incubados":"—"),rateCls(c.tEcl,70,40));
+      set("r-sn",c.sN?c.sN+" · "+nf(c.sMean,2)+" larvas/mL"+(c.sN<15?" (faltam "+(15-c.sN)+")":""):"—");
+      set("r-lar",c.larvas!=null?nf(Math.round(c.larvas),0)+" larvas":"—");
+      set("r-tsob",c.tSob!=null?nf(c.tSob,1)+" %":(c.larvas!=null?"falta a taxa de eclosão":"—"),rateCls(c.tSob,60,30));
+    }
+    m.querySelector(".eggform").addEventListener("input",show);m.querySelector(".eggform").addEventListener("change",show);show();
+    if($("e-save"))$("e-save").onclick=function(){
+      read();L.by=me?me.name:"";L.upd=Date.now();
+      var t2=tankData(id),A=(t2.eggLots||[]).filter(function(x){return x.id!==L.id});A.push(clean(L));A.sort(function(a,b){return a.t-b.t});t2.eggLots=A.slice(-100);t2.updatedAt=Date.now();
+      var c=eggCalc(L);if(isNew)logTo(t2,"Recolha de ovos registada"+(c.viab!=null?" · viáveis "+nf(c.viab,0)+"%":""));
+      persist(BYID[id].label+": recolha de ovos guardada");openEggLots(id);
+    };
+    if($("e-del"))$("e-del").onclick=function(){var b=this;if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmar?";b.style.color="var(--alert)";return}
+      var t2=tankData(id),old=t2.eggLots;t2.eggLots=(t2.eggLots||[]).filter(function(x){return x.id!==L.id});persist("Recolha apagada",{label:"Anular",fn:function(){tankData(id).eggLots=old;persist(null)}});openEggLots(id)};
   });
 }
 

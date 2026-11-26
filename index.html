@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-<link rel="modulepreload" href="app.js?v=20261126072106">
+<link rel="modulepreload" href="app.js?v=20261126072816">
 <link rel="modulepreload" href="firebase.js">
 <link rel="modulepreload" href="qr.js">
 <link rel="modulepreload" href="xlsx.js">
@@ -615,11 +615,33 @@ nav.sections button:not(.nav-main){font-size:14px}
 .sp-form{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface2)}
 .sp-form .field input{background:var(--surface)}
 .ro #sp-new,.ro #sp-end{display:none}
+
+/* v22 recolhas de ovos */
+.el-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.el-item{display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;color:var(--text);font:inherit}
+.el-item:hover{border-color:var(--spawn)}
+.el-d b{display:block;font-size:14.5px}.el-d span{font-size:12px;color:var(--muted)}
+.el-k span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}.el-k b{font-family:var(--display);font-size:17px}
+.good{color:var(--ok)!important}.mid{color:var(--maint)!important}.bad{color:var(--alert)!important}
+.estep{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--surface)}
+.estep summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:700;font-size:15px}
+.estep summary::-webkit-details-marker{display:none}
+.estep summary i{font-style:normal;width:26px;height:26px;border-radius:50%;background:var(--spawn);color:#fff;display:grid;place-items:center;font-size:13px;flex:none}
+.estep[open]{padding:0 14px 12px}.estep[open] summary{padding:12px 0}
+.estep .lbl small{text-transform:none;letter-spacing:0;font-weight:500}
+.eres{background:color-mix(in srgb,var(--spawn) 7%,var(--surface2));border-radius:12px;padding:6px 12px;margin-top:4px}
+.er{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.er:last-child{border-bottom:0}.er span{color:var(--muted)}.er b{font-variant-numeric:tabular-nums;text-align:right}
+.er.big b{font-family:var(--display);font-size:24px}
+.ewarn{margin-top:8px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--maint) 14%,var(--surface));font-size:13.5px;font-weight:600}
+.eproto{margin-top:12px;font-size:13.5px;color:var(--muted)}.eproto summary{cursor:pointer;font-weight:600;color:var(--accent)}
+.eproto ul{padding-left:18px;margin:8px 0 0;line-height:1.6}
+.esave{position:sticky;bottom:-1px;background:var(--surface);padding:10px 0 4px;margin-top:8px}
 </style>
 </head>
 <body>
 <div id="root"><div class="auth"><div class="auth-card"><p class="auth-p">A carregar…</p></div></div></div>
 <noscript>Esta app precisa de JavaScript.</noscript>
-<script type="module" src="app.js?v=20261126072106"></script>
+<script type="module" src="app.js?v=20261126072816"></script>
 </body>
 </html>
