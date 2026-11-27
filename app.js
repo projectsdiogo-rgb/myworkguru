@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261126080407";
+var APP_VERSION="20261127181726";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1055,6 +1055,21 @@ function openEggLots(id){
     m.querySelectorAll("[data-el]").forEach(function(b){b.onclick=function(){openEggLot(id,b.dataset.el)}});
   });
 }
+/* Caixa de contagens: escreve um número e toca em "+" (o teclado numérico do iPhone não tem espaço nem Enter) */
+var CNT={};
+function cntBoxHTML(idc,counts){CNT[idc]=(counts||[]).slice();return '<div class="cnt-box" data-cb="'+idc+'"><div class="cnt-chips"></div><div class="cnt-in"><input id="'+idc+'" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="Nº de larvas"><button type="button" class="btn spawn cnt-add" aria-label="Adicionar contagem">+ Adicionar</button></div></div>'}
+function cntGet(idc){var a=(CNT[idc]||[]).slice(),el=$(idc);if(el){parseCounts(el.value).forEach(function(x){a.push(x)})}return a}
+function cntRender(box){var idc=box.dataset.cb,A=CNT[idc]||[],c=box.querySelector(".cnt-chips");
+  c.innerHTML=A.length?A.map(function(x,i){return '<button type="button" class="cnt-chip" data-ci="'+i+'" title="Tocar para apagar"><small>'+(i+1)+'</small>'+String(x).replace(".",",")+'<i>×</i></button>'}).join(""):'<span class="hint" style="margin:0">Ainda sem contagens.</span>'}
+function cntBind(root,onChange){root.querySelectorAll(".cnt-box").forEach(function(box){
+  var idc=box.dataset.cb,inp=box.querySelector("input"),add=box.querySelector(".cnt-add");
+  function push(){var v=parseCounts(inp.value);if(!v.length){inp.focus();return}CNT[idc]=(CNT[idc]||[]).concat(v);inp.value="";cntRender(box);onChange();inp.focus()}
+  add.addEventListener("pointerdown",function(e){e.preventDefault()});
+  add.onclick=push;
+  inp.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "||e.key===","){e.preventDefault();push()}});
+  box.querySelector(".cnt-chips").addEventListener("click",function(e){var b=e.target.closest("[data-ci]");if(!b)return;CNT[idc].splice(+b.dataset.ci,1);cntRender(box);onChange()});
+  cntRender(box);
+})}
 function openEggLot(id,lid){
   var td=tankData(id),isNew=!lid,L=isNew?{id:newId("e"),t:Date.now(),ecl:{counts:[]},sob:{counts:[]}}:clean((td.eggLots||[]).filter(function(x){return x.id===lid})[0]||{});
   if(!L.id){toast("Recolha não encontrada");return}
@@ -1076,12 +1091,12 @@ function openEggLot(id,lid){
     '<div class="enote">🧪 Agitar suavemente e trocar a água (90–110 s). Lavar 3 a 4 vezes e colocar os ovos com cuidado na incubadora.</div></details>'+
     '<details class="estep"'+(L.ecl.counts.length?' open':'')+'><summary><i>3</i>Taxa de eclosão</summary><div class="formgrid">'+
       F("e-evol","Volume do balde",L.ecl.vol,"L")+
-      '<div class="field full"><label class="lbl" for="e-ecnt">Contagens das pipetagens de 1 mL <small>(15 a 20, separadas por espaço)</small></label><textarea id="e-ecnt" inputmode="decimal" style="min-height:64px" placeholder="Ex.: 12 9 14 11 10 …">'+L.ecl.counts.join(" ")+'</textarea></div>'+
+      '<div class="field full"><label class="lbl" for="e-ecnt">Contagens das pipetagens de 1 mL <small>(15 a 20)</small></label>'+cntBoxHTML("e-ecnt",L.ecl.counts)+'</div>'+
     '</div><div class="eres">'+R("r-en","Pipetagens · média por mL")+R("r-ecl","Total de larvas eclodidas")+'<div class="er big"><span>Taxa de eclosão</span><b id="r-tecl">—</b></div></div></details>'+
     '<details class="estep"'+(L.sob.counts.length?' open':'')+'><summary><i>4</i>Sobrevivência até abertura da boca</summary>'+
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="e-mouth"'+(L.sob.mouth?' checked':'')+'> Abertura da boca verificada à lupa</label><div class="formgrid">'+
       F("e-svol","Volume do balde",L.sob.vol,"L")+
-      '<div class="field full"><label class="lbl" for="e-scnt">Contagens das pipetagens de 1 mL <small>(15 a 20)</small></label><textarea id="e-scnt" inputmode="decimal" style="min-height:64px" placeholder="Ex.: 8 7 10 9 …">'+L.sob.counts.join(" ")+'</textarea></div>'+
+      '<div class="field full"><label class="lbl" for="e-scnt">Contagens das pipetagens de 1 mL <small>(15 a 20)</small></label>'+cntBoxHTML("e-scnt",L.sob.counts)+'</div>'+
     '</div><div class="eres">'+R("r-sn","Pipetagens · média por mL")+R("r-lar","Total de larvas")+'<div class="er big"><span>Taxa de sobrevivência</span><b id="r-tsob">—</b></div></div></details>'+
     '<div class="field" style="margin-top:12px"><label class="lbl" for="e-notes">Notas</label><textarea id="e-notes" maxlength="300" style="min-height:56px">'+esc(L.notes||"")+'</textarea></div>'+
     (readOnly?'':'<div class="row esave"><button class="btn" id="e-save" style="flex:1">Guardar recolha</button>'+(isNew?'':'<button class="btn ghost" id="e-del">Apagar</button>')+'</div>')+
@@ -1099,8 +1114,8 @@ function openEggLot(id,lid){
     function read(){
       var d=$("e-date").value;L.t=d?new Date(d).getTime()||L.t:L.t;L.phase=$("e-phase").value.trim();
       L.epg=num("e-epg");L.gV=num("e-gv");L.gI=num("e-gi");L.gInc=num("e-ginc");L.volH2O2=num("e-vol2");L.tTank=num("e-ttank");L.tInc=num("e-tinc");
-      L.ecl={vol:num("e-evol"),counts:parseCounts($("e-ecnt").value)};
-      L.sob={mouth:$("e-mouth").checked,vol:num("e-svol"),counts:parseCounts($("e-scnt").value)};
+      L.ecl={vol:num("e-evol"),counts:cntGet("e-ecnt")};
+      L.sob={mouth:$("e-mouth").checked,vol:num("e-svol"),counts:cntGet("e-scnt")};
       L.notes=$("e-notes").value.trim();
     }
     function show(){
@@ -1119,6 +1134,7 @@ function openEggLot(id,lid){
       set("r-lar",c.larvas!=null?nf(Math.round(c.larvas),0)+" larvas":"—");
       set("r-tsob",c.tSob!=null?nf(c.tSob,1)+" %":(c.larvas!=null?"falta a taxa de eclosão":"—"),rateCls(c.tSob,60,30));
     }
+    cntBind(m,show);if(readOnly)m.querySelectorAll(".cnt-in").forEach(function(x){x.style.display="none"});
     m.querySelector(".eggform").addEventListener("input",show);m.querySelector(".eggform").addEventListener("change",show);show();
     if($("e-save"))$("e-save").onclick=function(){
       read();L.by=me?me.name:"";L.upd=Date.now();
