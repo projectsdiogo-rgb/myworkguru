@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261127181726";
+var APP_VERSION="20261127182319";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -18,7 +18,7 @@ var TABS=[
   {k:"lt",label:"Limpezas e Tratamentos",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>'},
   ,{k:"transf",label:"Transferências",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>'}
   ,{k:"posturas",label:"Posturas",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><ellipse cx="8.5" cy="14" rx="4.5" ry="5.5"/><ellipse cx="16.5" cy="8.5" rx="3.5" ry="4.5"/><ellipse cx="17" cy="18.5" rx="2.5" ry="3"/></svg>'}
-  ,{k:"racoes",label:"Rações",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
+  ,{k:"racoes",label:"Stock",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1.2 12.2A2 2 0 0 1 14.8 21H9.2a2 2 0 0 1-2-1.8L6 7z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9.5 12h5"/></svg>'}
   ,{k:"fichas",label:"Fichas",icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>'}
 ];
 var LT_HASH="limpezas-tratamentos";
@@ -29,8 +29,8 @@ var TABBAR_ORDER=["lt","posturas","mapa","racoes","more"],MORE_TABS=["transf","f
 var MORE_DESC={transf:"Mover peixe entre tanques e saídas",fichas:"Fichas públicas dos tanques e QR codes"};
 var MORE_ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
 var MAP_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg>';
-var TAB_SHORT={posturas:"Posturas",lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Rações",mapa:"Mapa"};
-function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"?"racoes":h==="fichas"?"fichas":h==="posturas"?"posturas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
+var TAB_SHORT={posturas:"Posturas",lt:"Limpezas",transf:"Transfer.",fichas:"Fichas",racoes:"Stock",mapa:"Mapa"};
+function tabFromHash(h){return h==="limpezas"||h==="tratamentos"||h===LT_HASH||h==="lt"?"lt":(h==="racoes"||h==="stock"?"racoes":h==="fichas"?"fichas":h==="posturas"?"posturas":(h==="transferencias"||h==="transf"?"transf":(h==="mapa"?"mapa":null)))}
 function tabHash(k){return k==="lt"?LT_HASH:(k==="transf"?"transferencias":k)}
 
 /* Layout (quadro 1000x750, segundo o esboço) */
