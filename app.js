@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261127182319";
+var APP_VERSION="20261127183331";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -307,7 +307,7 @@ function spawnBadge(id){var sp=spawnOf(id);if(!sp)return"";var n=spawnDays(sp);r
 function spawnCount(){return TANKS.filter(function(t){return spawnOf(t.id)}).length}
 function startSpawn(id,when,note){var td=tankData(id);td.spawn={since:when,note:note||"",by:me?me.name:""};td.updatedAt=Date.now();logTo(td,"Desova / posturas assinaladas"+(note?": "+note:"")+(Math.abs(Date.now()-when)>36e5?" (desde "+fmt(when)+")":""));persist(BYID[id].label+": desova assinalada");refreshTank(id);renderPanel();updatePostBadge();if(ui.tab==="posturas")viewPosturas()}
 /* Recolhas com dados (viáveis, contagens, etc.) feitas entre duas datas */
-function lotHasData(l){return l&&(l.epg!=null||l.gV!=null||l.gI!=null||l.gInc!=null||(l.ecl&&l.ecl.counts&&l.ecl.counts.length)||(l.sob&&l.sob.counts&&l.sob.counts.length))}
+function lotHasData(l){return l&&(l.cV!=null||l.cI!=null||l.epg!=null||l.gV!=null||l.gI!=null||l.gInc!=null||(l.ecl&&l.ecl.counts&&l.ecl.counts.length)||(l.sob&&l.sob.counts&&l.sob.counts.length))}
 function lotsBetween(id,a,b){return (peek(id).eggLots||[]).filter(function(l){return l.t>=a-36e5&&l.t<=b+36e5&&lotHasData(l)})}
 function endSpawn(id){var td=tankData(id),sp=td.spawn;if(!sp)return;var now=Date.now(),hasData=lotsBetween(id,sp.since,now).length>0;
   if(hasData)td.spawns=(td.spawns||[]).concat([{start:sp.since,end:now,note:sp.note||""}]).slice(-30);delete td.spawn;td.updatedAt=Date.now();
@@ -1024,7 +1024,10 @@ function eggCalc(L){
   var r={},n=function(v){return v==null||v===""?null:+v};
   var epg=n(L.epg),gV=n(L.gV),gI=n(L.gI),gInc=n(L.gInc)!=null?n(L.gInc):gV;
   r.gTot=gV!=null||gI!=null?(gV||0)+(gI||0):null;
-  r.viab=r.gTot?(gV||0)/r.gTot*100:null;
+  r.viabPeso=r.gTot?(gV||0)/r.gTot*100:null;
+  var cV=n(L.cV),cI=n(L.cI);r.cTot=cV!=null||cI!=null?(cV||0)+(cI||0):null;
+  r.viabLupa=r.cTot?(cV||0)/r.cTot*100:null;
+  r.viab=r.viabPeso!=null?r.viabPeso:r.viabLupa;
   r.ovosV=epg!=null&&gV!=null?epg*gV:null;
   r.gInc=gInc;
   r.esperadas=epg!=null&&gInc!=null?epg*gInc:null;
@@ -1081,8 +1084,12 @@ function openEggLot(id,lid){
     '<details class="estep" open><summary><i>1</i>Recolha e viabilidade</summary><div class="formgrid">'+
       '<div class="field"><label class="lbl" for="e-date">Data da recolha</label><input id="e-date" type="datetime-local" value="'+localDT(L.t)+'" max="'+localDT(Date.now()+60000)+'"></div>'+
       '<div class="field"><label class="lbl" for="e-phase">Fase de desenvolvimento</label><input id="e-phase" list="e-phases" maxlength="40" value="'+esc(L.phase||"")+'" placeholder="Ex.: Gástrula"><datalist id="e-phases">'+EGG_PHASES.map(function(p){return '<option value="'+p+'">'}).join("")+'</datalist></div>'+
+    '</div><div class="esub">🔬 Viabilidade à lupa <small>(contagem de uma amostra, junto com a fase)</small></div><div class="formgrid">'+
+      F("e-cv","Ovos viáveis contados",L.cV,"nº")+F("e-ci","Ovos inviáveis contados",L.cI,"nº")+
+    '</div><div class="eres">'+R("r-vlupa","Viabilidade à lupa")+'</div>'+
+    '<div class="esub">⚖️ Pesagem dos ovos</div><div class="formgrid">'+
       F("e-epg","Ovos em 1 g",L.epg,"contagem","Ex.: 1500")+F("e-gv","Ovos viáveis",L.gV,"g")+F("e-gi","Ovos inviáveis",L.gI,"g")+
-    '</div><div class="eres">'+R("r-viab","Viabilidade")+R("r-ovosv","Nº estimado de ovos viáveis")+'</div></details>'+
+    '</div><div class="eres">'+R("r-viab","Viabilidade por peso")+R("r-ovosv","Nº estimado de ovos viáveis")+'</div></details>'+
     '<details class="estep"'+(isNew?'':' open')+'><summary><i>2</i>Incubação e desinfeção</summary><div class="formgrid">'+
       F("e-ginc","Ovos incubados",L.gInc,"g","= viáveis")+F("e-vol2","Água para desinfeção",L.volH2O2,"L")+
       F("e-ttank","Temperatura do tanque",L.tTank,"°C")+F("e-tinc","Temperatura da incubadora",L.tInc,"°C")+
@@ -1101,7 +1108,8 @@ function openEggLot(id,lid){
     '<div class="field" style="margin-top:12px"><label class="lbl" for="e-notes">Notas</label><textarea id="e-notes" maxlength="300" style="min-height:56px">'+esc(L.notes||"")+'</textarea></div>'+
     (readOnly?'':'<div class="row esave"><button class="btn" id="e-save" style="flex:1">Guardar recolha</button>'+(isNew?'':'<button class="btn ghost" id="e-del">Apagar</button>')+'</div>')+
     '<details class="eproto"><summary>Ver fórmulas usadas</summary><ul>'+
-      '<li><b>Viabilidade</b> = g viáveis ÷ (g viáveis + g inviáveis) × 100</li>'+
+      '<li><b>Viabilidade à lupa</b> = ovos viáveis contados ÷ total de ovos contados × 100</li>'+
+      '<li><b>Viabilidade por peso</b> = g viáveis ÷ (g viáveis + g inviáveis) × 100</li>'+
       '<li><b>Larvas esperadas</b> = ovos em 1 g × g de ovos incubados</li>'+
       '<li><b>Larvas eclodidas</b> = média das pipetagens (por mL) × volume do balde (mL)</li>'+
       '<li><b>Taxa de eclosão</b> = larvas eclodidas ÷ larvas esperadas × 100</li>'+
@@ -1113,7 +1121,7 @@ function openEggLot(id,lid){
     function num(idf){var el=$(idf);if(!el)return null;var s=String(el.value).replace(",",".").trim();if(s==="")return null;var x=parseFloat(s);return isFinite(x)?x:null}
     function read(){
       var d=$("e-date").value;L.t=d?new Date(d).getTime()||L.t:L.t;L.phase=$("e-phase").value.trim();
-      L.epg=num("e-epg");L.gV=num("e-gv");L.gI=num("e-gi");L.gInc=num("e-ginc");L.volH2O2=num("e-vol2");L.tTank=num("e-ttank");L.tInc=num("e-tinc");
+      L.cV=num("e-cv");L.cI=num("e-ci");L.epg=num("e-epg");L.gV=num("e-gv");L.gI=num("e-gi");L.gInc=num("e-ginc");L.volH2O2=num("e-vol2");L.tTank=num("e-ttank");L.tInc=num("e-tinc");
       L.ecl={vol:num("e-evol"),counts:cntGet("e-ecnt")};
       L.sob={mouth:$("e-mouth").checked,vol:num("e-svol"),counts:cntGet("e-scnt")};
       L.notes=$("e-notes").value.trim();
@@ -1121,7 +1129,8 @@ function openEggLot(id,lid){
     function show(){
       read();var c=eggCalc(L);
       function set(idr,txt,cls){var el=$(idr);if(el){el.textContent=txt;el.className=cls||""}}
-      set("r-viab",c.viab!=null?nf(c.viab,1)+" %":"—",rateCls(c.viab,70,50));
+      set("r-vlupa",c.viabLupa!=null?nf(c.viabLupa,1)+" %"+" ("+nf(c.cTot,0)+" ovos)":"—",rateCls(c.viabLupa,70,50));
+      set("r-viab",c.viabPeso!=null?nf(c.viabPeso,1)+" %":"—",rateCls(c.viabPeso,70,50));
       set("r-ovosv",c.ovosV!=null?nf(Math.round(c.ovosV),0)+" ovos":"—");
       set("r-h2o2",c.h2o2!=null?nf(c.h2o2,1)+" mL":"—");
       set("r-dt",c.dT!=null?nf(c.dT,1)+" °C":"—",c.dT==null?"":c.aclimatar?"bad":"good");
