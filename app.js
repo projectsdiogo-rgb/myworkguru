@@ -2,7 +2,7 @@
 import {FB} from "./firebase.js";
 import {qrSvg} from "./qr.js";
 import {makeXlsx} from "./xlsx.js";
-var APP_VERSION="20261127183331";
+var APP_VERSION="20261127183739";
 "use strict";
 /* ================= Dados base ================= */
 var STATUSES=[
@@ -1441,7 +1441,7 @@ function openFicha(id){
    Lista de alimentos em "diario/_config" {foods:[...]} ("—" = coluna vazia no Excel).
    Leituras: 1 por dia aberto (+ alterações), 1 do dia anterior, 1 da lista de alimentos. */
 var OXY_F=[{k:"o2",label:"O₂",unit:"mg/L"},{k:"sat",label:"Sat.",unit:"%"},{k:"temp",label:"Temp.",unit:"°C"}];
-var DEFAULT_FOODS=["22mm Sparus","7mmSH Sparos","7mm seca Sparos","Mar-17 Vitalis Repro","Mar-9 Vitalis Prima","Mar-22 Vitalis Prima","Mar-9 Vitalis Repro","Pota","Cavala","Douradinhas","Carapau","Sardinha","8mm Aquasoja","—","Mexilhão","Poliquetas"];
+var DEFAULT_FOODS=["22mm Sparus","7mmSH Sparos","7mm seca Sparos","Mar-17 Vitalis Repro","Mar-9 Vitalis Prima","Mar-22 Vitalis Prima","Mar-9 Vitalis Repro","Pota","Cavala","Douradinhas","Carapau","Sardinha","8mm Skretting","—","Mexilhão","Poliquetas"];
 var dToday=null,dTodayKey="",dTodayOn=false,dDay=null,dPrev=null,dDate="",dUnsub=null,dMode="oxy",dFoods=null,dOpen=false;
 var LASTFOOD_KEY="mwg_lastfood";
 function todayKey(){return dateVal(Date.now())}
@@ -1455,7 +1455,12 @@ function alHas(a){return Object.keys(alItems(a)).length>0}
 function oxyLow(r){return !!r&&((r.o2!=null&&r.o2<5)||(r.sat!=null&&r.sat<70))}
 function dCount(day,which){var T=dTanks();if(!day)return 0;return T.filter(function(t){return which==="oxy"?oxyHas((day.r||{})[t.id]):alHas((day.al||{})[t.id])}).length}
 function foodsList(){return (dFoods||DEFAULT_FOODS).filter(function(f){return f&&f!=="—"})}
-function loadFoods(){if(dFoods)return Promise.resolve(dFoods);return FB.getDoc(FB.doc(FB.db,"diario/_config")).then(function(s){dFoods=s.exists()&&s.data().foods&&s.data().foods.length?s.data().foods:DEFAULT_FOODS.slice();return dFoods}).catch(function(){dFoods=DEFAULT_FOODS.slice();return dFoods})}
+var FOOD_RENAME={"8mm Aquasoja":"8mm Skretting"}; /* nomes corrigidos em listas já guardadas */
+function loadFoods(){if(dFoods)return Promise.resolve(dFoods);return FB.getDoc(FB.doc(FB.db,"diario/_config")).then(function(s){
+  dFoods=s.exists()&&s.data().foods&&s.data().foods.length?s.data().foods:DEFAULT_FOODS.slice();
+  var ch=false;dFoods=dFoods.map(function(f){if(FOOD_RENAME[f]){ch=true;return FOOD_RENAME[f]}return f});
+  if(ch&&s.exists()&&!readOnly)FB.setDoc(FB.doc(FB.db,"diario/_config"),{foods:dFoods,_mod:Date.now(),by:me?me.name:""}).catch(function(){});
+  return dFoods}).catch(function(){dFoods=DEFAULT_FOODS.slice();return dFoods})}
 function lastFood(id){var m=lsGet(LASTFOOD_KEY)||{};return m[id]||""}
 function setLastFood(id,f){var m=lsGet(LASTFOOD_KEY)||{};m[id]=f;lsSet(LASTFOOD_KEY,m)}
 function ensureDToday(){
